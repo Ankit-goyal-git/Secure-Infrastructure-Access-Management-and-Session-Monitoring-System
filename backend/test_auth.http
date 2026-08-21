@@ -1,4 +1,4 @@
-### 1. Authenticate / Login User
+### 1. Authenticate / Login User (Employee)
 # This will return a JSON object containing your "token". Copy that token.
 POST http://localhost:3000/api/auth/login
 Content-Type: application/json
@@ -36,3 +36,40 @@ Content-Type: application/json
 ### 5. Fetch Personal Access Request Logs History
 GET http://localhost:3000/api/access-requests
 Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1
+
+
+### ==========================================
+### BLOCK 4: MANAGER PORTAL & APPROVALS (Manager)
+### ==========================================
+
+### 6. Authenticate / Login Manager
+# Returns a token for Manager role (Boss Bob)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "boss@example.com",
+  "password": "password123"
+}
+
+### 7. Fetch Pending Requests List (Manager Auth Required)
+GET http://localhost:3000/api/manager/access-requests
+Authorization: Bearer REPLACE_WITH_MANAGER_TOKEN_FROM_STEP_6
+
+### 8. Approve Access Request (Replace :id with request ID from Step 7)
+POST http://localhost:3000/api/manager/access-requests/1/approve
+Authorization: Bearer REPLACE_WITH_MANAGER_TOKEN_FROM_STEP_6
+Content-Type: application/json
+
+{
+  "duration": 30
+}
+
+### 9. Deny Access Request (Replace :id with request ID from Step 7)
+POST http://localhost:3000/api/manager/access-requests/2/deny
+Authorization: Bearer REPLACE_WITH_MANAGER_TOKEN_FROM_STEP_6
+Content-Type: application/json
+
+{
+  "reason": "Request lacks valid business context"
+}
