@@ -1,0 +1,38 @@
+### 1. Authenticate / Login User
+# This will return a JSON object containing your "token". Copy that token.
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "rahul@example.com",
+  "password": "password123"
+}
+
+### 2. Fetch User Profile
+# Replace the token string below with the actual token you copied from Step 1.
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1
+
+
+### ==========================================
+### BLOCK 3: ACCESS REQUESTS & SERVERS (Employee)
+### ==========================================
+
+### 3. Fetch Target Servers List
+GET http://localhost:3000/api/servers
+Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1
+
+### 4. Create Access Request
+POST http://localhost:3000/api/access-requests
+Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1
+Content-Type: application/json
+
+{
+  "serverId": 1,
+  "duration": 30,
+  "reason": "Debug deployment issue"
+}
+
+### 5. Fetch Personal Access Request Logs History
+GET http://localhost:3000/api/access-requests
+Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1

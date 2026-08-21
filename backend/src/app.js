@@ -8,6 +8,11 @@ const PORT = process.env.PORT || 3000;
 // Parsers
 app.use(express.json());
 
+// Mount routers
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/servers', require('./routes/servers'));
+app.use('/api/access-requests', require('./routes/requests'));
+
 // Basic health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
