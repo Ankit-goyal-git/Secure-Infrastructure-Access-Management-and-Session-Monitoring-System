@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# SSH host keys
+gateway_host_key
+gateway_host_key.pub
+
+# Environment files
+.env
+
+# IDE
+.vscode/
+.idea/
