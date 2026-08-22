@@ -214,7 +214,9 @@ This document defines the REST API endpoints exposed by the Node.js/Express.js b
 ---
 
 ## 7. Internal Gateway Communication (Service-to-Service)
-*Note: These endpoints require internal HMAC verification or API Key headers to restrict caller identities.*
+*Note: These endpoints require internal authentication using a shared secret sent in the header:*
+- **Header**: `x-api-key`
+- **Header Value**: `<SHARED_GATEWAY_API_KEY>`
 
 ### 7.1. Gateway Authorization Check
 - **Endpoint**: `GET /internal/access/check`
@@ -226,7 +228,9 @@ This document defines the REST API endpoints exposed by the Node.js/Express.js b
     "userId": 1,
     "serverId": 1,
     "accessType": "ssh",
-    "expiresAt": "2026-08-21T18:35:00+05:30"
+    "expiresAt": "2026-08-21T18:35:00+05:30",
+    "targetHost": "target-server-ip-or-host",
+    "targetPort": 22
   }
   ```
 - **Response - Denied (403 Forbidden)**:
@@ -262,9 +266,10 @@ This document defines the REST API endpoints exposed by the Node.js/Express.js b
   {
     "sessionId": "0f0f9a1c-1234-4567-8901-123456789abc",
     "endedAt": "2026-08-21T18:25:00+05:30",
-    "reason": "user_disconnect"
+    "reason": "user_disconnect" 
   }
   ```
+  *Note: Allowed values for "reason": `user_disconnect`, `access_expired`, `policy_violation`, `gateway_error`.*
 - **Response (200 OK)**:
   ```json
   {

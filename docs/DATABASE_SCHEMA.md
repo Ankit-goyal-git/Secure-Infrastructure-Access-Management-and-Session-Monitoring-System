@@ -79,7 +79,7 @@ Represents active or historical SSH connections routed through the gateway.
 - **`started_at`**: `TIMESTAMP` (Not Null, Default: `NOW()`)
 - **`ended_at`**: `TIMESTAMP` (Nullable)
 - **`status`**: `VARCHAR(20)` (Not Null) — Value constraints: `active`, `completed`, `terminated`, `expired`, `blocked`
-- **`termination_reason`**: `VARCHAR(100)` (Nullable) — Value constraints: `user_disconnect`, `access_expired`, `security_policy`, `admin_termination`, `gateway_error`
+- **`termination_reason`**: `VARCHAR(100)` (Nullable) — Value constraints: `user_disconnect`, `access_expired`, `policy_violation`, `gateway_error`
 
 ### 2.6. `audit_logs`
 Stores security-related events and actions executed during active sessions.

@@ -46,7 +46,7 @@ const Session = sequelize.define('Session', {
     allowNull: true,
     field: 'termination_reason',
     validate: {
-      isIn: [['user_disconnect', 'access_expired', 'security_policy', 'admin_termination', 'gateway_error', null]],
+      isIn: [['user_disconnect', 'access_expired', 'policy_violation', 'gateway_error', null]],
     },
   },
 }, {
