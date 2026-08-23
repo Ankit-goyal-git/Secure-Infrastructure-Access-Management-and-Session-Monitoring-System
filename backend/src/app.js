@@ -13,6 +13,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/servers', require('./routes/servers'));
 app.use('/api/access-requests', require('./routes/requests'));
 app.use('/api/manager', require('./routes/manager'));
+app.use('/internal', require('./routes/internal'));
 
 // Basic health check endpoint
 app.get('/health', (req, res) => {

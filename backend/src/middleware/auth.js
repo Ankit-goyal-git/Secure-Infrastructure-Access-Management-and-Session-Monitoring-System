@@ -36,7 +36,19 @@ const authorizeRoles = (...allowedRoles) => {
   };
 };
 
+// API Key Validation: checks if request contains the valid shared secret key in headers
+const validateApiKey = (req, res, next) => {
+  const apiKey = req.headers['x-api-key'];
+  const expectedApiKey = process.env.GATEWAY_API_KEY || 'gateway_secret_key_5678';
+
+  if (!apiKey || apiKey !== expectedApiKey) {
+    return res.status(401).json({ error: 'Unauthorized service access. Invalid API key.' });
+  }
+  next();
+};
+
 module.exports = {
   authenticate,
   authorizeRoles,
+  validateApiKey,
 };

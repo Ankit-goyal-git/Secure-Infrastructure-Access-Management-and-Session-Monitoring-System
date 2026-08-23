@@ -73,3 +73,62 @@ Content-Type: application/json
 {
   "reason": "Request lacks valid business context"
 }
+
+
+### ==========================================
+### BLOCK 5: INTERNAL GATEWAY APIS (SSH Gateway)
+### ==========================================
+
+### 10. Check Authorization Status (Gateway)
+GET http://localhost:3000/internal/access/check?userId=1&serverId=1
+x-api-key: gateway_secret_key_5678
+
+### 11. Start SSH Session Webhook
+POST http://localhost:3000/internal/sessions/start
+x-api-key: gateway_secret_key_5678
+Content-Type: application/json
+
+{
+  "sessionId": "0f0f9a1c-1234-4567-8901-123456789abc",
+  "userId": 1,
+  "serverId": 1
+}
+
+### 12. Forward Command Audit Event Webhook
+POST http://localhost:3000/internal/audit/events
+x-api-key: gateway_secret_key_5678
+Content-Type: application/json
+
+{
+  "sessionId": "0f0f9a1c-1234-4567-8901-123456789abc",
+  "userId": 1,
+  "serverId": 1,
+  "eventType": "COMMAND_EXECUTED",
+  "eventData": {
+    "command": "ls -la"
+  }
+}
+
+### 13. Forward Policy Violation / Security Alert (Returns terminateSession instruction)
+POST http://localhost:3000/internal/security-events
+x-api-key: gateway_secret_key_5678
+Content-Type: application/json
+
+{
+  "sessionId": "0f0f9a1c-1234-4567-8901-123456789abc",
+  "userId": 1,
+  "serverId": 1,
+  "rule": "SENSITIVE_FILE_ACCESS",
+  "severity": "high",
+  "description": "User attempted to run: cat /etc/shadow"
+}
+
+### 14. End SSH Session Webhook (Wipes Redis grant if reason is access_expired)
+POST http://localhost:3000/internal/sessions/end
+x-api-key: gateway_secret_key_5678
+Content-Type: application/json
+
+{
+  "sessionId": "0f0f9a1c-1234-4567-8901-123456789abc",
+  "reason": "user_disconnect"
+}
