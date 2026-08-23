@@ -40,6 +40,8 @@ Team members can explore detailed documentation folders directly within this rep
 - [**Database Schema Design**](docs/DATABASE_SCHEMA.md): PostgreSQL schema models, tables, relationships, and Redis caching.
 - [**REST API Contracts Reference**](docs/API_CONTRACTS.md): Endpoint list, parameters, request body schemas, and response formats.
 - [**Developer & Collaboration Guide**](docs/DEVELOPMENT.md): Code conventions, branch workflows, Pull Request checks, and setup guidelines.
+- [**Frontend Integration Guide**](docs/FRONTEND_INTEGRATION_GUIDE.md): APIs, headers and JSON formats for the React dashboard.
+- [**SSH Gateway Integration Guide**](docs/GATEWAY_INTEGRATION_GUIDE.md): Internal routes, API keys and event webhook specifications.
 
 ### 📦 Subsystem Components
 - [**`frontend/`**](frontend/README.md): React/Vite dashboard client application.
