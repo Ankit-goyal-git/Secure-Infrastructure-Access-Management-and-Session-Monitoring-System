@@ -177,7 +177,7 @@
       ]
     },
     {
-      "name": "3. Approvals (Manager)",
+      "name": "3. Approvals & Revocations (Manager)",
       "item": [
         {
           "name": "3.1 Login Manager (Bob)",
@@ -257,7 +257,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"duration\": 30\n}",
+              "raw": "{\n  \"duration\": 30,\n  \"approvalReason\": \"Approve access under ticket #3129\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -319,6 +319,39 @@
                 "access-requests",
                 "2",
                 "deny"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.5 Revoke Active Access Grant",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{MANAGER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/manager/access-grants/1/revoke",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "manager",
+                "access-grants",
+                "1",
+                "revoke"
               ]
             }
           },
@@ -504,6 +537,120 @@
                 "internal",
                 "sessions",
                 "end"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Admin Operations",
+      "item": [
+        {
+          "name": "5.1 Login Admin (Alice)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 Onboard New Target Server",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ADMIN_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"staging-k8s-node-0\",\n  \"host\": \"192.168.1.50\",\n  \"port\": 22,\n  \"description\": \"Staging Kubernetes Master Node\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/servers",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "servers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 Update Target Server Node status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ADMIN_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"maintenance\",\n  \"description\": \"Temporarily disabled for server OS upgrades\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/servers/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "servers",
+                "1"
               ]
             }
           },
