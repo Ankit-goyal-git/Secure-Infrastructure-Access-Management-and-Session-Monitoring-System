@@ -14,6 +14,30 @@ exports.createRequest = async (req, res) => {
       return res.status(404).json({ error: 'Target server not found or inactive.' });
     }
 
+    // 2. Prevent overlapping active or pending requests for the same server
+    const existingRequest = await AccessRequest.findOne({
+      where: {
+        userId: req.user.id,
+        serverId,
+        status: 'pending',
+      },
+    });
+
+    const { AccessGrant } = require('../models');
+    const existingGrant = await AccessGrant.findOne({
+      where: {
+        userId: req.user.id,
+        serverId,
+        status: 'active',
+      },
+    });
+
+    if (existingRequest || existingGrant) {
+      return res.status(409).json({
+        error: 'You already have an active grant or a pending request for this server.',
+      });
+    }
+
     // 2. Create the request in the database
     const request = await AccessRequest.create({
       userId: req.user.id,

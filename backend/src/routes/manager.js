@@ -7,5 +7,6 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
 router.get('/access-requests', authenticate, authorizeRoles('manager', 'admin'), managerController.getPendingRequests);
 router.post('/access-requests/:id/approve', authenticate, authorizeRoles('manager', 'admin'), managerController.approveRequest);
 router.post('/access-requests/:id/deny', authenticate, authorizeRoles('manager', 'admin'), managerController.denyRequest);
+router.post('/access-grants/:id/revoke', authenticate, authorizeRoles('manager', 'admin'), managerController.revokeGrant);
 
 module.exports = router;

@@ -32,6 +32,14 @@ const seedDatabase = async () => {
     });
     console.log(`Created Manager: ${manager.name} (${manager.email})`);
 
+    const admin = await User.create({
+      name: 'Admin Alice',
+      email: 'admin@example.com',
+      passwordHash,
+      role: 'admin',
+    });
+    console.log(`Created Admin: ${admin.name} (${admin.email})`);
+
     // 4. Create a mock target server for testing
     const testServer = await Server.create({
       name: 'demo-server',

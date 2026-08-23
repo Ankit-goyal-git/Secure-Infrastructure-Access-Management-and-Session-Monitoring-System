@@ -22,7 +22,7 @@ Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1
 GET http://localhost:3000/api/servers
 Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1
 
-### 4. Create Access Request
+### 4. Create Access Request (Fails if duplicate pending/active exists)
 POST http://localhost:3000/api/access-requests
 Authorization: Bearer REPLACE_WITH_JWT_TOKEN_FROM_STEP_1
 Content-Type: application/json
@@ -56,13 +56,15 @@ Content-Type: application/json
 GET http://localhost:3000/api/manager/access-requests
 Authorization: Bearer REPLACE_WITH_MANAGER_TOKEN_FROM_STEP_6
 
-### 8. Approve Access Request (Replace :id with request ID from Step 7)
+### 8. Approve Access Request (Mandatory duration and approvalReason notes)
+# Fails if manager tries to self-approve or grant duration exceeding the request limits
 POST http://localhost:3000/api/manager/access-requests/1/approve
 Authorization: Bearer REPLACE_WITH_MANAGER_TOKEN_FROM_STEP_6
 Content-Type: application/json
 
 {
-  "duration": 30
+  "duration": 30,
+  "approvalReason": "Approve access to execute PostgreSQL schema patches under ticket #8291"
 }
 
 ### 9. Deny Access Request (Replace :id with request ID from Step 7)
@@ -74,16 +76,22 @@ Content-Type: application/json
   "reason": "Request lacks valid business context"
 }
 
+### 10. Immediate Revocation of Active Access Grant (Manager)
+# Evicts Redis authorization key and terminates any running active gateway sessions
+POST http://localhost:3000/api/manager/access-grants/1/revoke
+Authorization: Bearer REPLACE_WITH_MANAGER_TOKEN_FROM_STEP_6
+
 
 ### ==========================================
 ### BLOCK 5: INTERNAL GATEWAY APIS (SSH Gateway)
 ### ==========================================
 
-### 10. Check Authorization Status (Gateway)
+### 11. Check Authorization Status (Gateway)
+# Returns allowed=true, targetHost, targetPort and expiresAt
 GET http://localhost:3000/internal/access/check?userId=1&serverId=1
 x-api-key: gateway_secret_key_5678
 
-### 11. Start SSH Session Webhook
+### 12. Start SSH Session Webhook
 POST http://localhost:3000/internal/sessions/start
 x-api-key: gateway_secret_key_5678
 Content-Type: application/json
@@ -94,7 +102,7 @@ Content-Type: application/json
   "serverId": 1
 }
 
-### 12. Forward Command Audit Event Webhook
+### 13. Forward Command Audit Event Webhook
 POST http://localhost:3000/internal/audit/events
 x-api-key: gateway_secret_key_5678
 Content-Type: application/json
@@ -109,7 +117,7 @@ Content-Type: application/json
   }
 }
 
-### 13. Forward Policy Violation / Security Alert (Returns terminateSession instruction)
+### 14. Forward Policy Violation / Security Alert (Returns terminateSession instruction)
 POST http://localhost:3000/internal/security-events
 x-api-key: gateway_secret_key_5678
 Content-Type: application/json
@@ -123,7 +131,7 @@ Content-Type: application/json
   "description": "User attempted to run: cat /etc/shadow"
 }
 
-### 14. End SSH Session Webhook (Wipes Redis grant if reason is access_expired)
+### 15. End SSH Session Webhook (Wipes Redis grant if reason is access_expired)
 POST http://localhost:3000/internal/sessions/end
 x-api-key: gateway_secret_key_5678
 Content-Type: application/json
@@ -131,4 +139,43 @@ Content-Type: application/json
 {
   "sessionId": "0f0f9a1c-1234-4567-8901-123456789abc",
   "reason": "user_disconnect"
+}
+
+
+### ==========================================
+### ADMIN SERVER ONBOARDING APIS (Admin Only)
+### ==========================================
+
+### 16. Authenticate / Login Admin
+# Returns a token for Admin role (Alice)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "password123"
+}
+
+### 17. Onboard New Server Node (Admin Required)
+# Fails if server host/port already exists
+POST http://localhost:3000/api/servers
+Authorization: Bearer REPLACE_WITH_ADMIN_TOKEN_FROM_STEP_16
+Content-Type: application/json
+
+{
+  "name": "staging-k8s-node-0",
+  "host": "192.168.1.50",
+  "port": 22,
+  "description": "Staging Kubernetes Master Node"
+}
+
+### 18. Update Server Node Configuration/Status (Admin Required)
+# Allows changing host, port, description or status (active, inactive, maintenance)
+PUT http://localhost:3000/api/servers/1
+Authorization: Bearer REPLACE_WITH_ADMIN_TOKEN_FROM_STEP_16
+Content-Type: application/json
+
+{
+  "status": "maintenance",
+  "description": "Temporarily disabled for server OS upgrades"
 }
