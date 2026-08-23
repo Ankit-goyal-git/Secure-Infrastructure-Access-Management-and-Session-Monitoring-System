@@ -19,5 +19,20 @@ services:
     ports:
       - "6379:6379"
 
+  target-server:
+    build:
+      context: ./docker/target-server
+    container_name: secure-target-server
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+      USER_NAME: employee
+      USER_PASSWORD: employee123
+      PASSWORD_ACCESS: "true"
+      SUDO_ACCESS: "false"
+    ports:
+      - "2223:2222"
+
 volumes:
   pgdata:

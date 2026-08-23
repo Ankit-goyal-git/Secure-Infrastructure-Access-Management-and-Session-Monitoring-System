@@ -42,6 +42,8 @@ __pycache__/
 *.pem
 *.key
 *.pub
+gateway_host_key
+gateway_host_key.pub
 
 # Production build directories
 dist/
