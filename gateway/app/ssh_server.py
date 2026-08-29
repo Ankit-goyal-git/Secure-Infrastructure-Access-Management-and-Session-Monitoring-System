@@ -93,6 +93,9 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
 
             if interactive:
                 self._write("gateway> ")
+            elif self._chan:
+                self._chan.exit(1)
+                self._chan.close()
 
             return
 
@@ -131,11 +134,11 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
         # Local development fallback.
         #
         # When the backend returns:
-        # secure-target-server:22
+        # secure-target-server:22 or target-server:22
         #
         # the gateway is running directly on Windows, so use:
         # localhost:2223
-        if target_host == "secure-target-server":
+        if target_host in ("secure-target-server", "target-server"):
             target_host = "localhost"
             target_port = 2223
 
