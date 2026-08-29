@@ -1,56 +1,196 @@
-# Monitoring & Auditing Subsystem
+# Monitoring, Auditing & Security Alerts Subsystem
 ## Secure Infrastructure Access Management and Session Monitoring System
 
-This component tracks platform-wide performance, captures telemetry from active SSH sessions, registers security violations, and populates analytical Grafana dashboards.
+This component (owned by **Member 4**) manages the ingestion, validation, and persistent storage of platform-wide security events. It exposes Prometheus metrics, defines anomalous alert rules, and provisions Grafana dashboards to track JIT access connections.
 
 ---
 
-## 1. Monitoring Tech Stack
-- **Metrics Scraper**: Prometheus (pull-based configuration)
-- **Data Visualization**: Grafana (visualizing connection counts and security alerts)
-- **Log Aggregator**: PostgreSQL Audit Logs (queryable via Node.js API)
+## 1. System Architecture
 
----
+The monitoring subsystem operates as a decoupled microservice within the containerized network:
 
-## 2. Directory Layout
-- [`src/`](src/):
-  - `prometheus.yml`: Configuration file instructing Prometheus where to poll (backend and gateway metrics endpoints).
-  - `grafana/`: Dashboard JSON blueprints.
-- [`tests/`](tests/): Test suites validating rule triggers.
-
----
-
-## 3. Metrics Scraped
-
-| Metric Name | Type | Description |
-| :--- | :--- | :--- |
-| `active_ssh_sessions` | Gauge | The total count of simultaneous SSH tunnels currently active through the gateway. |
-| `blocked_commands_total` | Counter | Total volume of prohibited command attempts intercepted by the SSH gateway. |
-| `authorization_failures_total` | Counter | Total volume of connection handshakes rejected due to expired or missing grants. |
-| `http_requests_duration_seconds` | Histogram | Latency distribution of internal REST API endpoint operations. |
-
----
-
-## 4. Setting Up
-The monitoring stack is automated inside docker-compose. To launch:
-```bash
-docker compose up -d prometheus grafana
+```
+┌─────────────────────┐       ┌──────────────────────┐
+│  Member 2 (Backend) ├──────►│                      │
+└─────────────────────┘       │  Monitoring Service  │◄─── GET /metrics ─── Prometheus
+┌─────────────────────┐       │    (Node.js + Exp)   │                        │
+│ Member 3 (Gateway)  ├──────►│                      │                        ▼
+└─────────────────────┘       └──────────┬───────────┘                     Grafana
+                                         │
+                                   PostgreSQL
+                                  (Audit Logs)
 ```
 
-Access dashboards:
-- **Prometheus UI**: `http://localhost:9090`
-- **Grafana UI**: `http://localhost:3000` (Default credential login configurations configured in environment variables)
+---
+
+## 2. Folder Structure
+
+```
+monitoring/
+├── src/
+│   ├── app.js                 # Express server endpoints & logging
+│   ├── db.js                  # PostgreSQL pool client & queries
+│   ├── metrics.js             # prom-client metrics definition
+│   ├── alerts.js              # sliding window alert rules engine
+│   └── validation.js          # schema constraints and checks
+├── tests/
+│   └── monitoring.test.js     # Jest/Supertest automated tests
+├── prometheus/
+│   └── prometheus.yml         # Prometheus scrape configuration
+├── grafana/
+│   └── provisioning/
+│       ├── datasources/
+│       │   └── datasource.yml # Prometheus datasource declaration
+│       └── dashboards/
+│           ├── dashboard.yml  # Dashboard index scanner
+│           └── dashboard.json # Panels layout JSON template
+├── Dockerfile                 # Monitoring service container build
+├── package.json               # Node dependencies configuration
+└── README.md                  # This documentation file
+```
 
 ---
 
-## 5. Security Alerts Rule Logic
-Alerts are triggered based on defined thresholds:
-- **Rule: BRUTE_FORCE_BYPASS_ATTEMPT**
-  - Severity: `high`
-  - Trigger: > 5 authorization failures within a 1-minute window for a single user/IP.
-- **Rule: MALICIOUS_COMMAND_SEQUENCE**
-  - Severity: `critical`
-  - Trigger: Any blocked command execution attempt intercepted inside a manager-approved active channel.
-- **Rule: DRIFT_DETECTION**
-  - Severity: `medium`
-  - Trigger: Gateway fails to verify session check with the API server.
+## 3. Environment Variables Configuration
+
+Configure local variables inside the workspace root `.env` file:
+
+| Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `MONITORING_PORT` | `3001` | Express listener port for the monitoring service. |
+| `DATABASE_URL` | *None* | Connection URI for the PostgreSQL instance. (Fallback to in-memory mode if unset). |
+| `ALERT_FAILURE_THRESHOLD` | `5` | Failed logins needed within the window to trigger brute-force alert. |
+| `ALERT_FAILURE_WINDOW_SECONDS`| `300` | Sliding window range (seconds) for authorization failures. |
+| `ALERT_BLOCK_THRESHOLD` | `3` | Blocked commands needed within the window to trigger policy alert. |
+| `ALERT_BLOCK_WINDOW_SECONDS` | `300` | Sliding window range (seconds) for blocked commands. |
+| `ALERT_COOLDOWN_SECONDS` | `60` | Cooldown period to suppress duplicate alert spam. |
+| `GRAFANA_ADMIN_PASSWORD` | `admin` | Administrator password to access Grafana UI panels. |
+
+---
+
+## 4. API Endpoints Reference
+
+### Ingestion endpoint
+* **`POST /events`**: Receive and process audit events.
+  - Returns `201 Created` with normalized `event_id` upon validation.
+  - Returns `400 Bad Request` if field validation fails.
+
+### Queries & Dashboards endpoints
+* **`GET /events`**: Retrieve historical events. Supports filters `event_type`, `user_id`, `server_id`, `session_id`, `result`, and time range (`from`, `to`) with pagination (`limit` & `offset`).
+* **`GET /security-alerts`**: Fetch list of triggered security alerts.
+* **`GET /health`**: Returns service statuses and indicates if it is running in PostgreSQL mode or In-Memory fallback mode.
+* **`GET /metrics`**: Scraping endpoint yielding raw metrics output formatted for Prometheus.
+
+---
+
+## 5. Standard Event Schema & Event Types
+
+Every event submitted must contain a valid `event_type` and adhere to types constraint:
+
+```json
+{
+  "event_id": "0f0f9a1c-1234-4567-8901-123456789abc", // Optional (Auto-generated if missing)
+  "event_type": "SESSION_CREATED",                   // Required
+  "timestamp": "2026-08-21T18:10:00.000Z",            // Optional (Auto-generated if missing)
+  "user_id": 17,                                      // Optional
+  "server_id": 2,                                     // Optional
+  "session_id": "8c772b21-4f11-477c-bc24-da1138a0bc72",// Optional
+  "result": "SUCCESS",                                // Optional (Enum: ALLOWED, BLOCKED, SUCCESS, FAILURE, EXPIRED)
+  "metadata": {}                                      // Optional (Flexible JSON object)
+}
+```
+
+### Supported Event Types Enum
+- `LOGIN_SUCCESS`, `LOGIN_FAILURE` (Member 2)
+- `ACCESS_REQUESTED`, `ACCESS_APPROVED`, `ACCESS_REJECTED` (Member 2)
+- `SESSION_CREATED`, `SESSION_ENDED` (Member 3)
+- `COMMAND_ALLOWED`, `COMMAND_BLOCKED` (Member 3)
+- `ACCESS_EXPIRED` (Member 3)
+- `SECURITY_ALERT` (Generated by Member 4 Alert Engine)
+
+---
+
+## 6. Security Alert Rules Engine
+
+Alerts are processed instantly upon event ingestion. When thresholds are crossed, a new `SECURITY_ALERT` event is registered:
+
+1. **Rule: BRUTE_FORCE_BYPASS_ATTEMPT**
+   - Severity: `high`
+   - Trigger: Greater than 5 `LOGIN_FAILURE` events within a 5-minute window for the same `user_id`.
+2. **Rule: MALICIOUS_COMMAND_SEQUENCE**
+   - Severity: `critical`
+   - Trigger: Greater than 3 `COMMAND_BLOCKED` events within a 5-minute window for the same `session_id`/`user_id`.
+
+**Alert Spam Cooldown**: To prevent floods, once a rule triggers for a user or session, it enters a `60s` cooldown window before another alert can be emitted.
+
+---
+
+## 7. Metrics Collected (Prometheus)
+
+The following low-cardinality metrics are exported at `/metrics`:
+
+- `active_ssh_sessions` (Gauge): Current concurrent sessions (increases on `SESSION_CREATED`, decreases on `SESSION_ENDED`/`ACCESS_EXPIRED` with strict double-decrement safety).
+- `sessions_created_total` (Counter): Total volume of initiated connections.
+- `sessions_ended_total` (Counter): Total volume of closed connections.
+- `blocked_actions_total` (Counter): Cumulative count of blocked actions.
+- `authorization_failures_total` (Counter): Cumulative count of rejected logins.
+- `audit_events_total` (Counter, labels: `event_type`, `result`): Audit ingestion volumes.
+- `security_alerts_total` (Counter, label: `alert_type`): Total alarms.
+- `command_allowed_total` (Counter): Cumulative permitted commands count.
+
+---
+
+## 8. Development Setup & Testing
+
+### Prerequisite Installation
+- Node.js LTS
+- Docker Desktop
+
+### 8.1. Running Locally (Without Docker)
+1. Navigate to directory:
+   ```bash
+   cd monitoring
+   ```
+2. Install packages:
+   ```bash
+   npm install
+   ```
+3. Run the development server (runs in in-memory fallback mode):
+   ```bash
+   npm run dev
+   ```
+4. Verify `/health` loads: `http://localhost:3001/health`.
+
+### 8.2. Running Automated Tests
+The test suite operates with zero external database dependencies:
+```bash
+npm test
+```
+
+---
+
+## 9. Docker Compose Stack
+
+Launch the entire monitoring ecosystem:
+```bash
+docker compose up -d db redis monitoring prometheus grafana
+```
+
+Explore dashboards:
+- **Prometheus Scraper UI**: `http://localhost:9090` (check Status -> Targets)
+- **Grafana Panel UI**: `http://localhost:3000` (Default credential login: `admin` / `admin`). Dashboard is automatically provisioned and ready.
+
+---
+
+## 10. Integration Instructions for Team Members
+
+For detailed contracts and JSON payload examples, check the integration guide:
+* [**Monitoring Integration Contract Specifications**](../docs/MONITORING_INTEGRATION.md)
+
+---
+
+## 11. Troubleshooting & Security
+
+* **Database Connection drops**: The service operates a connection pool timeout. If the database crashes, the service falls back to in-memory mode so gateway operations do not freeze.
+* **Sensitive data leak**: Avoid exporting passwords or API keys in audit metadata.
+* **Card-labels**: Do NOT use dynamic IDs as Prometheus metric labels. High-cardinality metrics will freeze Prometheus collectors. Use `audit_events_total{event_type="..."}` instead.
