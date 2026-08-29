@@ -2,6 +2,7 @@
 node_modules/
 jspm_packages/
 web_modules/
+.npm/
 
 # Local env files
 .env
@@ -18,6 +19,10 @@ pnpm-debug.log*
 lerna-debug.log*
 *.log
 
+# Test coverage
+coverage/
+.jest/
+
 # IDEs and editors
 .idea/
 .vscode/
@@ -27,6 +32,9 @@ lerna-debug.log*
 *.sln
 *.sw?
 .DS_Store
+.project
+.classpath
+Thumbs.db
 
 # Python virtual environment and cache
 .venv/
@@ -38,12 +46,11 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# Keys and certificates
+# Keys and certificates (excluding committed keys if any are required)
+# gateway_host_key and gateway_host_key.pub are committed, so they won't be ignored if tracked.
 *.pem
 *.key
 *.pub
-gateway_host_key
-gateway_host_key.pub
 
 # Production build directories
 dist/
