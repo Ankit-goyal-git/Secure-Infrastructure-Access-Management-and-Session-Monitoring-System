@@ -56,3 +56,6 @@ __pycache__/
 dist/
 build/
 out/
+
+# Frontend dependencies
+frontend/node_modules/
