@@ -1,22 +1,31 @@
-import { mockDb } from './mockDb';
+import axiosClient from '../api/axiosClient';
 
 export const managerService = {
   getPendingRequests: async () => {
-    return new Promise(resolve => setTimeout(() => {
-      const pending = mockDb.getRequests().filter(r => r.status === 'pending');
-      resolve(pending);
-    }, 500));
+    const response = await axiosClient.get('/manager/access-requests');
+    return response.data;
   },
-  approveRequest: async (id) => {
-    return new Promise(resolve => setTimeout(() => {
-      mockDb.updateRequestStatus(id, 'approved');
-      resolve({ message: "Access request approved" });
-    }, 600));
+
+  approveRequest: async (id, duration, approvalReason) => {
+    const response = await axiosClient.post(
+      `/manager/access-requests/${id}/approve`,
+      {
+        duration,
+        approvalReason,
+      }
+    );
+
+    return response.data;
   },
-  denyRequest: async (id) => {
-    return new Promise(resolve => setTimeout(() => {
-      mockDb.updateRequestStatus(id, 'denied');
-      resolve({ message: "Access request denied" });
-    }, 600));
-  }
+
+  denyRequest: async (id, reason) => {
+    const response = await axiosClient.post(
+      `/manager/access-requests/${id}/deny`,
+      {
+        reason,
+      }
+    );
+
+    return response.data;
+  },
 };

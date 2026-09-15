@@ -10,6 +10,7 @@ export default function AccessRequestForm({ servers, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setIsSubmitting(true);
     setError('');
 
@@ -17,16 +18,29 @@ export default function AccessRequestForm({ servers, onSuccess }) {
       await employeeService.createAccessRequest({
         serverId: Number(selectedServer),
         duration: Number(duration),
-        reason
+        reason: reason.trim()
       });
-      // Reset form
+
+      // Reset form after successful request
       setSelectedServer('');
       setDuration(30);
       setReason('');
-      // Trigger parent refresh
-      if (onSuccess) onSuccess();
+
+      // Refresh request history
+      if (onSuccess) {
+        await onSuccess();
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit request.');
+      console.error('Failed to submit access request:', err);
+
+      // Backend uses "error", while some APIs may use "message"
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to submit request.';
+
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -34,27 +48,49 @@ export default function AccessRequestForm({ servers, onSuccess }) {
 
   return (
     <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 shadow-xl">
-      <h2 className="text-lg font-semibold text-white mb-4">Request JIT Access</h2>
-      {error && <div className="mb-4 p-2 bg-red-500/10 text-red-400 text-sm rounded border border-red-500/50">{error}</div>}
+      <h2 className="text-lg font-semibold text-white mb-4">
+        Request JIT Access
+      </h2>
+
+      {error && (
+        <div className="mb-4 p-2 bg-red-500/10 text-red-400 text-sm rounded border border-red-500/50">
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm text-slate-300 mb-1">Target Server</label>
-          <select 
+          <label className="block text-sm text-slate-300 mb-1">
+            Target Server
+          </label>
+
+          <select
             className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 focus:outline-none focus:border-blue-500"
             value={selectedServer}
             onChange={(e) => setSelectedServer(e.target.value)}
             required
           >
             <option value="">Select a server...</option>
-            {Array.isArray(servers) ? servers.map(server => (
-              <option key={server.id} value={server.id}>{server.name}</option>
-            )) : <option disabled>No servers available</option>}
+
+            {Array.isArray(servers) ? (
+              servers.map((server) => (
+                <option key={server.id} value={server.id}>
+                  {server.name}
+                </option>
+              ))
+            ) : (
+              <option disabled>No servers available</option>
+            )}
           </select>
         </div>
+
         <div>
-          <label className="block text-sm text-slate-300 mb-1">Duration (Minutes)</label>
-          <input 
-            type="number" 
+          <label className="block text-sm text-slate-300 mb-1">
+            Duration (Minutes)
+          </label>
+
+          <input
+            type="number"
             className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 focus:outline-none focus:border-blue-500"
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
@@ -63,19 +99,24 @@ export default function AccessRequestForm({ servers, onSuccess }) {
             required
           />
         </div>
+
         <div>
-          <label className="block text-sm text-slate-300 mb-1">Justification</label>
-          <textarea 
+          <label className="block text-sm text-slate-300 mb-1">
+            Justification
+          </label>
+
+          <textarea
             className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 focus:outline-none focus:border-blue-500"
             rows="2"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Why do you need access?"
             required
-          ></textarea>
+          />
         </div>
-        <button 
-          type="submit" 
+
+        <button
+          type="submit"
           disabled={isSubmitting}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2 rounded-md font-medium transition"
         >

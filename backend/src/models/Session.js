@@ -7,32 +7,38 @@ const Session = sequelize.define('Session', {
     primaryKey: true,
     defaultValue: DataTypes.UUIDV4,
   },
+
   grantId: {
     type: DataTypes.BIGINT,
     allowNull: false,
     field: 'grant_id',
   },
+
   userId: {
     type: DataTypes.BIGINT,
     allowNull: false,
     field: 'user_id',
   },
+
   serverId: {
     type: DataTypes.BIGINT,
     allowNull: false,
     field: 'server_id',
   },
+
   startedAt: {
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: DataTypes.NOW,
     field: 'started_at',
   },
+
   endedAt: {
     type: DataTypes.DATE,
     allowNull: true,
     field: 'ended_at',
   },
+
   status: {
     type: DataTypes.STRING(20),
     allowNull: false,
@@ -41,12 +47,20 @@ const Session = sequelize.define('Session', {
       isIn: [['active', 'completed', 'terminated', 'expired', 'blocked']],
     },
   },
+
   terminationReason: {
     type: DataTypes.STRING(100),
     allowNull: true,
     field: 'termination_reason',
     validate: {
-      isIn: [['user_disconnect', 'access_expired', 'policy_violation', 'gateway_error', null]],
+      isIn: [[
+        'user_disconnect',
+        'client_exit',
+        'access_expired',
+        'policy_violation',
+        'gateway_error',
+        null,
+      ]],
     },
   },
 }, {

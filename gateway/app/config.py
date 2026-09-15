@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     backend_url: str = "http://localhost:3000"
+    monitoring_url: str = "http://localhost:3001"
     gateway_api_key: str = ""
     ssh_host: str = "0.0.0.0"
     ssh_port: int = 2222
