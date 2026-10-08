@@ -234,11 +234,16 @@ async def test_event_sender():
 
         await events.session_started(payload)
 
-        mock_instance.post.assert_awaited_once()
+        assert mock_instance.post.await_count == 2
 
-        call = mock_instance.post.await_args
-
-        assert call.kwargs["json"] == payload
-        assert call.args[0].endswith(
+        # First call is to Backend internal API
+        call_backend = mock_instance.post.await_args_list[0]
+        assert call_backend.kwargs["json"] == payload
+        assert call_backend.args[0].endswith(
             "/internal/sessions/start"
         )
+
+        # Second call is to Monitoring events API
+        call_monitoring = mock_instance.post.await_args_list[1]
+        assert call_monitoring.args[0].endswith("/events")
+        assert call_monitoring.kwargs["json"]["event_type"] == "SESSION_CREATED"

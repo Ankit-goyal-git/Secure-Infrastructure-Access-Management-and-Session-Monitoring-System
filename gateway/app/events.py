@@ -39,9 +39,9 @@ async def session_started(payload: dict) -> None:
     # Monitoring session lifecycle event
     await send_monitoring_event({
         "event_type": "SESSION_CREATED",
-        "user_id": payload["userId"],
-        "server_id": payload["serverId"],
-        "session_id": payload["sessionId"],
+        "user_id": payload.get("userId"),
+        "server_id": payload.get("serverId"),
+        "session_id": payload.get("sessionId"),
         "result": "SUCCESS",
         "metadata": {
             "source": "ssh_gateway",
