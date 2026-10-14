@@ -8,10 +8,9 @@ const seedDatabase = async () => {
     await sequelize.sync({ force: false });
     console.log('Database synced successfully.');
 
-    // 2. Clear existing entries to prevent duplication errors on re-run
-    await User.destroy({ where: {}, truncate: { cascade: true } });
-    await Server.destroy({ where: {}, truncate: { cascade: true } });
-    console.log('Existing users and servers cleared.');
+    // 2. Clear existing entries to prevent duplication errors on re-run and reset IDs
+    await sequelize.query('TRUNCATE TABLE users, servers, access_requests, access_grants, sessions, audit_logs, security_alerts RESTART IDENTITY CASCADE;');
+    console.log('Existing tables cleared and sequences reset.');
 
     // 3. Create test accounts
     const passwordHash = await bcrypt.hash('password123', 10);
