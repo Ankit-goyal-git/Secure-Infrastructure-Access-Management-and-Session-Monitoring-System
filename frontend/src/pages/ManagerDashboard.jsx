@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PendingRequestsList from '../components/specific/PendingRequestsList';
+import ActiveSessionsList from '../components/specific/ActiveSessionsList';
 import { managerService } from '../services/managerService';
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchRequests = async () => {
     setIsLoading(true);
     try {
-      const data = await managerService.getPendingRequests();
-      setPendingRequests(data || []);
+      const [requestsData, sessionsData] = await Promise.allSettled([
+        managerService.getPendingRequests(),
+        managerService.getActiveSessions(),
+      ]);
+
+      if (requestsData.status === 'fulfilled') {
+        setPendingRequests(requestsData.value || []);
+      } else {
+        console.error("Failed to fetch pending requests", requestsData.reason);
+      }
+
+      if (sessionsData.status === 'fulfilled') {
+        setActiveSessions(sessionsData.value || []);
+      } else {
+        console.error("Failed to fetch active sessions", sessionsData.reason);
+        setActiveSessions([]);
+      }
     } catch (error) {
-      console.error("Failed to fetch requests", error);
+      console.error("Failed to fetch dashboard data", error);
     } finally {
       setIsLoading(false);
     }
@@ -23,6 +40,20 @@ export default function ManagerDashboard() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      await managerService.revokeSession(sessionId, 'Revoked by manager');
+      await fetchRequests();
+    } catch (error) {
+      console.error('Failed to revoke session:', error);
+      alert(
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        'Failed to revoke session'
+      );
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
@@ -51,7 +82,17 @@ export default function ManagerDashboard() {
             <PendingRequestsList requests={pendingRequests} onActionComplete={fetchRequests} />
           )}
         </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-white mb-4 border-b border-slate-800 pb-2">Active Sessions</h2>
+          {isLoading ? (
+            <div className="text-slate-400">Loading active sessions...</div>
+          ) : (
+            <ActiveSessionsList sessions={activeSessions} onRevoke={handleRevokeSession} />
+          )}
+        </section>
       </main>
     </div>
   );
 }
+

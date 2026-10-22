@@ -59,6 +59,8 @@ const Session = sequelize.define('Session', {
         'access_expired',
         'policy_violation',
         'gateway_error',
+        'admin_termination',
+        'revoked',
         null,
       ]],
     },

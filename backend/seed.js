@@ -46,6 +46,8 @@ const seedDatabase = async () => {
       port: 22,
       description: 'Development SSH server target',
       status: 'active',
+      sshUsername: 'employee',
+      sshPassword: 'employee123',
     });
     console.log(`Created Test Server: ${testServer.name} (${testServer.host}:${testServer.port})`);
 

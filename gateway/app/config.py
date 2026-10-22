@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     ssh_port: int = 2222
     metrics_host: str = "0.0.0.0"
     metrics_port: int = 8000
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    target_host_override: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

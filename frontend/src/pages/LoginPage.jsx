@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/authService';
 
 export default function LoginPage() {
@@ -100,6 +100,15 @@ export default function LoginPage() {
             {isLoading ? 'Authenticating...' : 'Secure Sign In'}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-sm">
+          <Link
+            to="/register"
+            className="text-slate-400 hover:text-blue-400 transition-colors"
+          >
+            Need an account? Register here
+          </Link>
+        </div>
       </div>
     </div>
   );

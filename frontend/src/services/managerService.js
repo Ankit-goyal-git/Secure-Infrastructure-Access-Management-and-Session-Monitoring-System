@@ -28,4 +28,14 @@ export const managerService = {
 
     return response.data;
   },
+
+  getActiveSessions: async () => {
+    const response = await axiosClient.get('/manager/active-sessions');
+    return response.data;
+  },
+
+  revokeSession: async (sessionId, reason) => {
+    const response = await axiosClient.post(`/manager/active-sessions/${sessionId}/revoke`, { reason });
+    return response.data;
+  },
 };

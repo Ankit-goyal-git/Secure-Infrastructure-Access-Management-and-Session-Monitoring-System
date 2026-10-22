@@ -29,6 +29,23 @@ const Server = sequelize.define('Server', {
     allowNull: false,
     defaultValue: 'active',
   },
+  sshUsername: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    defaultValue: 'employee',
+    field: 'ssh_username',
+  },
+  sshKey: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'ssh_key',
+  },
+  sshPassword: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    defaultValue: 'employee123',
+    field: 'ssh_password',
+  },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,

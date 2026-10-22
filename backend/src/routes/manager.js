@@ -9,4 +9,8 @@ router.post('/access-requests/:id/approve', authenticate, authorizeRoles('manage
 router.post('/access-requests/:id/deny', authenticate, authorizeRoles('manager', 'admin'), managerController.denyRequest);
 router.post('/access-grants/:id/revoke', authenticate, authorizeRoles('manager', 'admin'), managerController.revokeGrant);
 
+// Active Sessions endpoints
+router.get('/active-sessions', authenticate, authorizeRoles('manager', 'admin'), managerController.getActiveSessions);
+router.post('/active-sessions/:id/revoke', authenticate, authorizeRoles('manager', 'admin'), managerController.revokeActiveSession);
+
 module.exports = router;

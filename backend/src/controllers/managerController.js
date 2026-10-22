@@ -235,6 +235,22 @@ exports.revokeGrant = async (req, res) => {
         eventData: { terminationReason: 'admin_termination', revokedBy: req.user.id },
         timestamp: session.endedAt,
       });
+
+      // Broadcast active revocation to Gateway via Redis Pub/Sub
+      try {
+        const payload = JSON.stringify({
+          action: 'REVOKE',
+          sessionId: session.id,
+          userId: session.userId,
+          serverId: session.serverId,
+          reason: 'admin_termination',
+          revokedBy: req.user.id,
+        });
+        await redisClient.publish('gateway:revocations', payload);
+        console.log(`Published active revocation for session ${session.id} to 'gateway:revocations'`);
+      } catch (pubErr) {
+        console.error('Failed to publish revocation to Redis Pub/Sub:', pubErr);
+      }
     }
 
     // 4. Log the overall access revocation event
@@ -258,3 +274,145 @@ exports.revokeGrant = async (req, res) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+// GET /api/manager/active-sessions
+exports.getActiveSessions = async (req, res) => {
+  try {
+    const { Session, User, Server, AccessGrant } = require('../models');
+    const sessions = await Session.findAll({
+      where: { status: 'active' },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'email'],
+        },
+        {
+          model: Server,
+          as: 'server',
+          attributes: ['id', 'name', 'host', 'port'],
+        },
+        {
+          model: AccessGrant,
+          as: 'grant',
+          attributes: ['id', 'startedAt', 'expiresAt', 'accessType', 'status'],
+        },
+      ],
+      order: [['started_at', 'DESC']],
+    });
+
+    const now = Date.now();
+    const formatted = sessions.map((sess) => {
+      let remainingDuration = 0;
+      let expiresAt = null;
+
+      if (sess.grant && sess.grant.expiresAt) {
+        expiresAt = sess.grant.expiresAt;
+        const diffMs = new Date(expiresAt).getTime() - now;
+        remainingDuration = Math.max(0, Math.ceil(diffMs / (60 * 1000)));
+      }
+
+      return {
+        id: sess.id,
+        sessionId: sess.id,
+        userId: sess.userId,
+        serverId: sess.serverId,
+        user: sess.user ? {
+          id: sess.user.id,
+          name: sess.user.name,
+          email: sess.user.email,
+        } : null,
+        server: sess.server ? {
+          id: sess.server.id,
+          name: sess.server.name,
+          host: sess.server.host,
+        } : null,
+        status: sess.status,
+        startedAt: sess.startedAt,
+        expiresAt: expiresAt,
+        remainingDuration: remainingDuration,
+        duration: remainingDuration,
+        accessType: sess.grant?.accessType || 'ssh',
+      };
+    });
+
+    return res.status(200).json(formatted);
+  } catch (error) {
+    console.error('Error fetching active sessions for manager:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// POST /api/manager/active-sessions/:id/revoke
+exports.revokeActiveSession = async (req, res) => {
+  const { id } = req.params;
+  const { reason = 'Revoked by manager' } = req.body;
+
+  try {
+    const { Session, AccessGrant, AuditLog } = require('../models');
+    const session = await Session.findByPk(id);
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found.' });
+    }
+
+    if (session.status !== 'active') {
+      return res.status(400).json({ error: 'Session is not active.' });
+    }
+
+    // 1. Terminate session in SQL
+    session.status = 'terminated';
+    session.endedAt = new Date();
+    session.terminationReason = 'admin_termination';
+    await session.save();
+
+    // 2. Revoke associated grant if present
+    if (session.grantId) {
+      await AccessGrant.update(
+        { status: 'revoked' },
+        { where: { id: session.grantId } }
+      );
+    }
+
+    // 3. Evict cache from Redis immediately
+    const redisKey = `access:${session.userId}:${session.serverId}`;
+    await redisClient.del(redisKey);
+
+    // 4. Publish active revocation message to Redis Pub/Sub for SSH Gateway
+    const revocationMessage = JSON.stringify({
+      action: 'REVOKE',
+      sessionId: session.id,
+      userId: session.userId,
+      serverId: session.serverId,
+      reason: 'admin_termination',
+      revokedBy: req.user.id,
+      note: reason,
+      timestamp: new Date().toISOString()
+    });
+    await redisClient.publish('gateway:revocations', revocationMessage);
+    console.log(`Published active revocation to Redis channel 'gateway:revocations' for session ${session.id}`);
+
+    // 5. Log audit trail
+    await AuditLog.create({
+      sessionId: session.id,
+      userId: session.userId,
+      serverId: session.serverId,
+      eventType: 'SESSION_REVOKED',
+      eventData: {
+        revokedBy: req.user.id,
+        reason: reason,
+      },
+      timestamp: new Date(),
+    });
+
+    return res.status(200).json({
+      message: 'Active session revoked and termination broadcast sent to gateway.',
+      sessionId: session.id,
+      status: 'terminated',
+    });
+  } catch (error) {
+    console.error('Error revoking active session:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+

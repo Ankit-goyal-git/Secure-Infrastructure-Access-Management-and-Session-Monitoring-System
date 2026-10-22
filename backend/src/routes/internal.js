@@ -7,8 +7,11 @@ const { validateApiKey } = require('../middleware/auth');
 router.use(validateApiKey);
 
 router.get('/access/check', gatewayController.checkAccess);
+router.post('/access/check', gatewayController.checkAccess);
 router.post('/sessions/start', gatewayController.startSession);
 router.post('/sessions/end', gatewayController.endSession);
+router.post('/sessions/:id/recording', gatewayController.saveRecording);
+router.get('/sessions/:id/recording', gatewayController.getRecording);
 router.post('/audit/events', gatewayController.logAuditEvent);
 router.post('/security-events', gatewayController.logSecurityEvent);
 

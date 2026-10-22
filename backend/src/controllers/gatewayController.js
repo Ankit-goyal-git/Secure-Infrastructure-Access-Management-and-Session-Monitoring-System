@@ -1,12 +1,17 @@
-const { AccessGrant, Server, Session, AuditLog, SecurityAlert } = require('../models');
+const path = require('path');
+const fs = require('fs');
+const bcrypt = require('bcryptjs');
+const { AccessGrant, Server, Session, AuditLog, SecurityAlert, User } = require('../models');
 const redisClient = require('../config/redis');
 
-// 1. GET /internal/access/check?userId=X&serverId=Y
+// 1. GET or POST /internal/access/check?userId=X&serverId=Y
 exports.checkAccess = async (req, res) => {
-  const { userId, serverId } = req.query;
+  const userId = req.query.userId || req.body?.userId;
+  const serverId = req.query.serverId || req.body?.serverId;
+  const password = req.query.password || req.body?.password;
 
   if (!userId || !serverId) {
-    return res.status(400).json({ error: 'userId and serverId are required query parameters.' });
+    return res.status(400).json({ error: 'userId and serverId are required parameters.' });
   }
 
   try {
@@ -24,7 +29,35 @@ exports.checkAccess = async (req, res) => {
 
     const cachedGrant = JSON.parse(cachedGrantStr);
 
-    // Fetch server target information from PostgreSQL to return routing host/port
+    // SSH Auth Verification: Validate employee web portal password if provided
+    if (password !== undefined) {
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(401).json({
+          allowed: false,
+          reason: 'Employee user account not found'
+        });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      if (!isPasswordValid) {
+        // Log security alert for failed password attempt
+        await AuditLog.create({
+          userId: parseInt(userId, 10),
+          serverId: parseInt(serverId, 10),
+          eventType: 'SSH_AUTH_FAILED',
+          eventData: { reason: 'Invalid web portal password during SSH handshake' },
+          timestamp: new Date()
+        });
+
+        return res.status(401).json({
+          allowed: false,
+          reason: 'Invalid employee web portal password'
+        });
+      }
+    }
+
+    // Fetch server target information from PostgreSQL to return dynamic routing host/port/credentials
     const server = await Server.findByPk(serverId);
     if (!server || server.status !== 'active') {
       return res.status(404).json({
@@ -40,7 +73,10 @@ exports.checkAccess = async (req, res) => {
       accessType: cachedGrant.accessType || 'ssh',
       expiresAt: cachedGrant.expiresAt,
       targetHost: server.host,
-      targetPort: server.port
+      targetPort: server.port,
+      targetUser: server.sshUsername || 'employee',
+      targetKey: server.sshKey || null,
+      targetPassword: server.sshPassword || 'employee123'
     });
   } catch (error) {
     console.error('Error checking internal authorization:', error);
@@ -218,3 +254,54 @@ exports.logSecurityEvent = async (req, res) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+// 6. POST /internal/sessions/:id/recording
+exports.saveRecording = async (req, res) => {
+  const { id } = req.params;
+  const content = req.body?.recording || req.body?.castData || req.body;
+
+  if (!content) {
+    return res.status(400).json({ error: 'recording payload is required.' });
+  }
+
+  try {
+    const recordingsDir = path.join(__dirname, '../../recordings');
+    if (!fs.existsSync(recordingsDir)) {
+      fs.mkdirSync(recordingsDir, { recursive: true });
+    }
+
+    const filePath = path.join(recordingsDir, `${id}.cast`);
+    const dataToWrite = typeof content === 'string' ? content : JSON.stringify(content);
+    fs.writeFileSync(filePath, dataToWrite, 'utf8');
+
+    await AuditLog.create({
+      sessionId: id,
+      eventType: 'SESSION_RECORDED',
+      eventData: { recordingPath: filePath },
+      timestamp: new Date()
+    });
+
+    return res.status(200).json({ success: true, path: filePath });
+  } catch (error) {
+    console.error('Error saving session recording:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// 7. GET /internal/sessions/:id/recording
+exports.getRecording = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const filePath = path.join(__dirname, '../../recordings', `${id}.cast`);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Session recording not found.' });
+    }
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(200).send(content);
+  } catch (error) {
+    console.error('Error reading session recording:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+

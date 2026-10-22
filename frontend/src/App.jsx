@@ -3,6 +3,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 
 // Import Page Placeholders
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import AuditView from './pages/AuditView';
@@ -12,6 +13,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         
         {/* Protected Routes */}
         <Route 

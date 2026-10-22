@@ -247,3 +247,106 @@ async def test_event_sender():
         call_monitoring = mock_instance.post.await_args_list[1]
         assert call_monitoring.args[0].endswith("/events")
         assert call_monitoring.kwargs["json"]["event_type"] == "SESSION_CREATED"
+
+
+@pytest.mark.asyncio
+async def test_ssh_auth_verification_and_dynamic_routing():
+    from app.ssh_server import GatewaySSHServer
+
+    server = GatewaySSHServer()
+    mock_backend_data = {
+        "allowed": True,
+        "targetHost": "192.168.1.50",
+        "targetPort": 2200,
+        "targetUser": "custom_deployer",
+        "targetKey": "-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----",
+        "targetPassword": "customPassword123",
+        "expiresAt": "2030-01-01T00:00:00Z",
+    }
+
+    with patch("app.ssh_server.check_access", new=AsyncMock(return_value=mock_backend_data)) as mock_check:
+        # Valid password authentication
+        result = await server.validate_password("employee_5_server_10", "validWebPassword123")
+        assert result is True
+        mock_check.assert_awaited_once_with(5, 10, password="validWebPassword123")
+        assert server._target_host == "192.168.1.50"
+        assert server._target_port == 2200
+        assert server._target_user == "custom_deployer"
+        assert server._target_key == mock_backend_data["targetKey"]
+        assert server._target_password == "customPassword123"
+
+        # Session requested passes dynamic values to session
+        session = server.session_requested()
+        assert session is not None
+        assert session._target_host == "192.168.1.50"
+        assert session._target_user == "custom_deployer"
+
+
+@pytest.mark.asyncio
+async def test_ssh_auth_verification_denied():
+    from app.ssh_server import GatewaySSHServer
+    from app.auth_client import AuthorizationError
+
+    server = GatewaySSHServer()
+    with patch(
+        "app.ssh_server.check_access",
+        new=AsyncMock(side_effect=AuthorizationError("Invalid employee web portal password")),
+    ):
+        result = await server.validate_password("employee_5_server_10", "wrongPassword")
+        assert result is False
+
+
+@pytest.mark.asyncio
+async def test_active_revocation_sever_session():
+    import json
+    from app.session_manager import SessionManager
+    from app.ssh_server import GatewaySSHSession
+
+    manager = SessionManager()
+    session = GatewaySSHSession(
+        target_host="10.0.0.1",
+        target_port=22,
+        user_id=12,
+        server_id=3,
+        expires_at="2035-01-01T00:00:00Z",
+    )
+    session.sever_connection = AsyncMock()
+
+    await manager.register("session-test-revoke", 12, 3, "2035-01-01T00:00:00Z", instance=session)
+
+    # Sever by user and server ID
+    severed = await manager.sever_session(user_id=12, server_id=3, reason="admin_termination")
+    assert "session-test-revoke" in severed
+    session.sever_connection.assert_awaited_once_with("admin_termination")
+
+
+def test_asciinema_recorder_format():
+    import json
+    from app.recorder import AsciinemaRecorder
+
+    recorder = AsciinemaRecorder("session-abc", width=100, height=30, title="Test Replay")
+    recorder.start()
+    recorder.record_input("ls -la\r")
+    recorder.record_output("total 0\r\ndrwxr-xr-x 2 user user\r\n")
+    recorder.stop()
+
+    cast_str = recorder.to_asciicast()
+    lines = [line for line in cast_str.strip().split("\n") if line]
+    assert len(lines) == 3
+
+    # Header line
+    header = json.loads(lines[0])
+    assert header["version"] == 2
+    assert header["width"] == 100
+    assert header["height"] == 30
+    assert header["title"] == "Test Replay"
+
+    # Event lines
+    ev1 = json.loads(lines[1])
+    assert ev1[1] == "i"
+    assert ev1[2] == "ls -la\r"
+
+    ev2 = json.loads(lines[2])
+    assert ev2[1] == "o"
+    assert "drwxr-xr-x" in ev2[2]
+
