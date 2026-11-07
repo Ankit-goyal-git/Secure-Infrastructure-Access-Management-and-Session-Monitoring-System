@@ -4,8 +4,8 @@ const { sequelize, User, Server } = require('./src/models');
 
 const seedDatabase = async () => {
   try {
-    // 1. Sync database (ensure tables exist)
-    await sequelize.sync({ force: false });
+    // 1. Sync database (ensure tables and columns exist)
+    await sequelize.sync({ alter: true });
     console.log('Database synced successfully.');
 
     // 2. Clear existing entries to prevent duplication errors on re-run and reset IDs
@@ -39,7 +39,7 @@ const seedDatabase = async () => {
     });
     console.log(`Created Admin: ${admin.name} (${admin.email})`);
 
-    // 4. Create a mock target server for testing
+    // 4. Create mock target servers for testing
     const testServer = await Server.create({
       name: 'demo-server',
       host: 'target-server',
@@ -50,6 +50,28 @@ const seedDatabase = async () => {
       sshPassword: 'employee123',
     });
     console.log(`Created Test Server: ${testServer.name} (${testServer.host}:${testServer.port})`);
+
+    const dbServer = await Server.create({
+      name: 'db-prod-01',
+      host: 'target-server',
+      port: 22,
+      description: 'Primary PostgreSQL Database Node',
+      status: 'active',
+      sshUsername: 'employee',
+      sshPassword: 'employee123',
+    });
+    console.log(`Created Test Server: ${dbServer.name} (${dbServer.host}:${dbServer.port})`);
+
+    const appServer = await Server.create({
+      name: 'payment-service-node',
+      host: 'target-server',
+      port: 22,
+      description: 'Payment Microservice Cluster Node',
+      status: 'active',
+      sshUsername: 'employee',
+      sshPassword: 'employee123',
+    });
+    console.log(`Created Test Server: ${appServer.name} (${appServer.host}:${appServer.port})`);
 
     console.log('Database seeding completed successfully.');
     process.exit(0);
