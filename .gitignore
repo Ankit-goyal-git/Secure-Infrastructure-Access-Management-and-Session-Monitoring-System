@@ -62,3 +62,9 @@ frontend/node_modules/
 
 gateway_host_key
 gateway_host_key.pub
+
+# Session recordings and audit cast files
+recordings/
+backend/recordings/
+*.cast
+
