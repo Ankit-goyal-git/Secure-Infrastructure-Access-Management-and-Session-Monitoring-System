@@ -148,18 +148,21 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
             setIsLoading(false);
             setIsPlaying(true);
             return;
+          } else {
+            setError(`Recording file for session ${sid} contains no keystroke events.`);
+            setIsLoading(false);
+            return;
           }
+        } else {
+          setError('No session ID associated with this audit log event.');
+          setIsLoading(false);
+          return;
         }
       } catch (err) {
-        // Fallback to sample demo recording
+        console.warn('Failed to load recording file from backend:', err);
+        setError(`Recording for session "${sid}" was not found on the server.`);
+        setIsLoading(false);
       }
-
-      // Fallback: render simulated authentic session events
-      const sample = generateSampleEvents(session);
-      setEvents(sample);
-      setTotalDuration(sample[sample.length - 1][0]);
-      setIsLoading(false);
-      setIsPlaying(true);
     };
 
     fetchRecording();
@@ -298,6 +301,29 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
             <div className="flex items-center justify-center h-64 text-slate-500">
               <span className="animate-spin inline-block mr-3">⟳</span>
               Loading keystroke playback...
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
+              <div className="text-amber-400 text-sm font-semibold flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
+              <p className="text-xs text-slate-500 max-w-md text-center">
+                Keystroke recordings are created when an employee connects via SSH, executes commands, and closes the session.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  const sample = generateSampleEvents(session);
+                  setEvents(sample);
+                  setTotalDuration(sample[sample.length - 1][0]);
+                  setIsPlaying(true);
+                }}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded border border-slate-700 transition"
+              >
+                Preview Simulated Demo (14s)
+              </button>
             </div>
           ) : terminalOutput ? (
             <>

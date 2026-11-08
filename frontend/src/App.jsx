@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import AuditView from './pages/AuditView';
 
 export default function App() {
@@ -16,6 +17,14 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         
         {/* Protected Routes */}
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
         <Route 
           path="/employee" 
           element={

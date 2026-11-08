@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
     target_host_override: str = ""
+    credential_encryption_key: str = "super_secure_vault_master_key_2026_aes256"
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

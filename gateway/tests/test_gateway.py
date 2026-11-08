@@ -350,3 +350,53 @@ def test_asciinema_recorder_format():
     assert ev2[1] == "o"
     assert "drwxr-xr-x" in ev2[2]
 
+
+def test_crypto_envelope_encryption_and_decryption():
+    from app.crypto import encrypt_credential, decrypt_credential, is_encrypted
+
+    raw_password = "superSecretDatabasePassword123!"
+    encrypted_token = encrypt_credential(raw_password)
+
+    assert is_encrypted(encrypted_token)
+    assert encrypted_token.startswith("enc:v1:")
+    assert raw_password not in encrypted_token
+
+    # Decrypt on-the-fly
+    decrypted = decrypt_credential(encrypted_token)
+    assert decrypted == raw_password
+
+    # Legacy fallback for unencrypted strings
+    assert decrypt_credential("plainLegacyPassword") == "plainLegacyPassword"
+    assert decrypt_credential(None) is None
+
+
+@pytest.mark.asyncio
+async def test_ssh_server_on_the_fly_credential_decryption():
+    from app.ssh_server import GatewaySSHServer
+    from app.crypto import encrypt_credential
+
+    server = GatewaySSHServer()
+    raw_secret_pass = "decryptedTargetPassword999"
+    raw_secret_key = "-----BEGIN RSA PRIVATE KEY-----\nSECRET_KEY_DATA\n-----END RSA PRIVATE KEY-----"
+
+    mock_backend_data = {
+        "allowed": True,
+        "targetHost": "10.0.1.50",
+        "targetPort": 2222,
+        "targetUser": "root",
+        "targetKey": encrypt_credential(raw_secret_key),
+        "targetPassword": encrypt_credential(raw_secret_pass),
+        "expiresAt": "2030-01-01T00:00:00Z",
+    }
+
+    with patch("app.ssh_server.check_access", new=AsyncMock(return_value=mock_backend_data)):
+        result = await server.validate_password("employee_1_server_2", "userWebPortalPassword")
+        assert result is True
+
+        # Verify credentials were decrypted on-the-fly in transient memory
+        assert server._target_password == raw_secret_pass
+        assert server._target_key == raw_secret_key
+        assert server._target_host == "10.0.1.50"
+        assert server._target_user == "root"
+
+

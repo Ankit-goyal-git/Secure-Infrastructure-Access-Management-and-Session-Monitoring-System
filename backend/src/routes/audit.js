@@ -63,7 +63,11 @@ router.get('/events', authenticate, async (req, res) => {
 router.get('/sessions/:id/recording', authenticate, async (req, res) => {
   const { id } = req.params;
   try {
-    const filePath = path.join(__dirname, '../../recordings', `${id}.cast`);
+    let filePath = path.join(__dirname, '../../recordings', `${id}.cast`);
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(__dirname, '../../../recordings', `${id}.cast`);
+    }
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Session recording not found.' });
     }

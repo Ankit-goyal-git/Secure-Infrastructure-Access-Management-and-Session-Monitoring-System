@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { encryptCredential } = require('../utils/crypto');
 
 const Server = sequelize.define('Server', {
   id: {
@@ -29,6 +30,11 @@ const Server = sequelize.define('Server', {
     allowNull: false,
     defaultValue: 'active',
   },
+  department: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'engineering',
+  },
   sshUsername: {
     type: DataTypes.STRING(100),
     allowNull: true,
@@ -39,12 +45,25 @@ const Server = sequelize.define('Server', {
     type: DataTypes.TEXT,
     allowNull: true,
     field: 'ssh_key',
+    set(val) {
+      if (val && typeof val === 'string' && val.trim() !== '') {
+        this.setDataValue('sshKey', encryptCredential(val.trim()));
+      } else {
+        this.setDataValue('sshKey', null);
+      }
+    },
   },
   sshPassword: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.TEXT,
     allowNull: true,
-    defaultValue: 'employee123',
     field: 'ssh_password',
+    set(val) {
+      if (val && typeof val === 'string' && val.trim() !== '') {
+        this.setDataValue('sshPassword', encryptCredential(val.trim()));
+      } else {
+        this.setDataValue('sshPassword', null);
+      }
+    },
   },
   createdAt: {
     type: DataTypes.DATE,

@@ -164,16 +164,22 @@ export default function AuditView() {
                             </span>
                           </td>
                           <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                            <button
-                              onClick={() => handleOpenReplay(log)}
-                              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded text-xs font-medium shadow-sm shadow-blue-900/30 inline-flex items-center gap-1.5 transition cursor-pointer"
-                              title="Replay terminal keystroke session"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z" />
-                              </svg>
-                              <span>Replay</span>
-                            </button>
+                            {log.session_id ? (
+                              <button
+                                onClick={() => handleOpenReplay(log)}
+                                className="px-3 py-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded text-xs font-medium shadow-sm shadow-blue-900/30 inline-flex items-center gap-1.5 transition cursor-pointer"
+                                title="Replay terminal keystroke session"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <span>Watch Replay</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-slate-500 font-mono">
+                                System Event
+                              </span>
+                            )}
                           </td>
                         </tr>
                       );

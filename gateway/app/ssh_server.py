@@ -20,6 +20,7 @@ from app.events import (
 from app.session_manager import session_manager
 from app.recorder import AsciinemaRecorder
 from app.revocation import revocation_listener
+from app.crypto import decrypt_credential
 
 
 class GatewaySSHSession(asyncssh.SSHServerSession):
@@ -435,6 +436,10 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
                 password=self._target_password,
                 client_keys=client_keys,
                 known_hosts=None,
+                config=None,
+                agent_path=None,
+                x509_trusted_cert_paths=None,
+                x509_trusted_certs=None,
             )
             self._target_conn = conn
 
@@ -704,6 +709,10 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
             password=self._target_password,
             client_keys=client_keys,
             known_hosts=None,
+            config=None,
+            agent_path=None,
+            x509_trusted_cert_paths=None,
+            x509_trusted_certs=None,
         ) as conn:
             result = await conn.run(command, check=False)
             output = result.stdout or ""
@@ -775,8 +784,12 @@ class GatewaySSHServer(asyncssh.SSHServer):
             self._target_host = target_host
             self._target_port = target_port
             self._target_user = data.get("targetUser", "employee")
-            self._target_key = data.get("targetKey")
-            self._target_password = data.get("targetPassword", "employee123")
+
+            # Decrypt upstream credentials on-the-fly in transient memory
+            raw_key = data.get("targetKey")
+            raw_password = data.get("targetPassword")
+            self._target_key = decrypt_credential(raw_key) if raw_key else None
+            self._target_password = decrypt_credential(raw_password) if raw_password else "employee123"
 
             self._user_id = user_id
             self._server_id = server_id

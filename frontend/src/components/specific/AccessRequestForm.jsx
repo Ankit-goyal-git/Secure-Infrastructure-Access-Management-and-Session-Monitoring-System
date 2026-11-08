@@ -75,7 +75,7 @@ export default function AccessRequestForm({ servers, onSuccess }) {
             {Array.isArray(servers) ? (
               servers.map((server) => (
                 <option key={server.id} value={server.id}>
-                  {server.name}
+                  {server.name} {server.department ? `[${server.department.toUpperCase()}]` : ''} ({server.host}:{server.port})
                 </option>
               ))
             ) : (

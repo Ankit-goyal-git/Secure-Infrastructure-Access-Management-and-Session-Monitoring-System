@@ -71,7 +71,7 @@ exports.getMyRequests = async (req, res) => {
         {
           model: Server,
           as: 'server',
-          attributes: ['name'],
+          attributes: ['name', 'host', 'port', 'department'],
         },
       ],
       order: [['created_at', 'DESC']],
@@ -80,8 +80,12 @@ exports.getMyRequests = async (req, res) => {
     // Map to API response shapes format
     const formatted = requests.map(reqItem => ({
       id: reqItem.id,
+      userId: reqItem.userId,
       serverId: reqItem.serverId,
       serverName: reqItem.server ? reqItem.server.name : 'Unknown Server',
+      serverHost: reqItem.server ? reqItem.server.host : null,
+      serverPort: reqItem.server ? reqItem.server.port : 22,
+      department: reqItem.server ? reqItem.server.department : null,
       requestedDuration: reqItem.requestedDuration,
       reason: reqItem.reason,
       status: reqItem.status,
