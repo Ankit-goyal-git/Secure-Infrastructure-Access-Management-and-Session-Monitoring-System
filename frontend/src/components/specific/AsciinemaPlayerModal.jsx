@@ -15,101 +15,6 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
   const animFrameRef = useRef(null);
   const lastTickRef = useRef(null);
 
-  // Generate fallback demo events if session recording is not yet uploaded
-  const generateSampleEvents = (sess) => {
-    const userStr = sess?.user_id || 'employee';
-    const srvStr = sess?.server_id || 'demo-server';
-    return [
-      [0.0, 'o', `\x1b[32mAntigravity Secure Infrastructure Gateway\x1b[0m\r\n`],
-      [0.3, 'o', `Connecting to target server: \x1b[36m${srvStr}\x1b[0m as \x1b[33m${userStr}\x1b[0m...\r\n`],
-      [0.8, 'o', `Authenticated via dynamic Zero-Trust JIT grant.\r\n\r\n`],
-      [1.2, 'o', `${userStr}@${srvStr}:~$ `],
-      [1.8, 'i', 'u'],
-      [1.9, 'o', 'u'],
-      [2.0, 'i', 'n'],
-      [2.1, 'o', 'n'],
-      [2.2, 'i', 'a'],
-      [2.3, 'o', 'a'],
-      [2.4, 'i', 'm'],
-      [2.5, 'o', 'm'],
-      [2.6, 'i', 'e'],
-      [2.7, 'o', 'e'],
-      [2.8, 'i', ' '],
-      [2.9, 'o', ' '],
-      [3.0, 'i', '-'],
-      [3.1, 'o', '-'],
-      [3.2, 'i', 'a'],
-      [3.3, 'o', 'a'],
-      [3.6, 'i', '\r'],
-      [3.7, 'o', '\r\nLinux demo-target 5.15.0-generic #72-Ubuntu SMP x86_64 GNU/Linux\r\n'],
-      [4.2, 'o', `${userStr}@${srvStr}:~$ `],
-      [5.0, 'i', 'l'],
-      [5.1, 'o', 'l'],
-      [5.2, 'i', 's'],
-      [5.3, 'o', 's'],
-      [5.4, 'i', ' '],
-      [5.5, 'o', ' '],
-      [5.6, 'i', '-'],
-      [5.7, 'o', '-'],
-      [5.8, 'i', 'l'],
-      [5.9, 'o', 'l'],
-      [6.0, 'i', 'a'],
-      [6.1, 'o', 'a'],
-      [6.4, 'i', '\r'],
-      [6.5, 'o', '\r\ntotal 28\r\ndrwxr-xr-x 4 employee employee 4096 Oct 22 13:45 .\r\ndrwxr-xr-x 3 root     root     4096 Oct 22 13:30 ..\r\n-rw-r--r-- 1 employee employee  220 Oct 22 13:30 .bash_logout\r\n-rw-r--r-- 1 employee employee 3771 Oct 22 13:30 .bashrc\r\n-rw-r--r-- 1 employee employee  807 Oct 22 13:30 .profile\r\ndrwx------ 2 employee employee 4096 Oct 22 13:45 .ssh\r\n-rw-rw-r-- 1 employee employee  142 Oct 22 13:50 deployment.log\r\n'],
-      [7.2, 'o', `${userStr}@${srvStr}:~$ `],
-      [8.0, 'i', 'c'],
-      [8.1, 'o', 'c'],
-      [8.2, 'i', 'a'],
-      [8.3, 'o', 'a'],
-      [8.4, 'i', 't'],
-      [8.5, 'o', 't'],
-      [8.6, 'i', ' '],
-      [8.7, 'o', ' '],
-      [8.8, 'i', 'd'],
-      [8.9, 'o', 'd'],
-      [9.0, 'i', 'e'],
-      [9.1, 'o', 'e'],
-      [9.2, 'i', 'p'],
-      [9.3, 'o', 'p'],
-      [9.4, 'i', 'l'],
-      [9.5, 'o', 'l'],
-      [9.6, 'i', 'o'],
-      [9.7, 'o', 'o'],
-      [9.8, 'i', 'y'],
-      [9.9, 'o', 'y'],
-      [10.0, 'i', 'm'],
-      [10.1, 'o', 'm'],
-      [10.2, 'i', 'e'],
-      [10.3, 'o', 'e'],
-      [10.4, 'i', 'n'],
-      [10.5, 'o', 'n'],
-      [10.6, 'i', 't'],
-      [10.7, 'o', 't'],
-      [10.8, 'i', '.'],
-      [10.9, 'o', '.'],
-      [11.0, 'i', 'l'],
-      [11.1, 'o', 'l'],
-      [11.2, 'i', 'o'],
-      [11.3, 'o', 'o'],
-      [11.4, 'i', 'g'],
-      [11.5, 'o', 'g'],
-      [11.8, 'i', '\r'],
-      [11.9, 'o', '\r\n[2026-10-22 13:50:01] Service status: HEALTHY\r\n[2026-10-22 13:50:02] Database connection pool: ACTIVE\r\n[2026-10-22 13:50:03] JIT session established with gateway audit enabled.\r\n'],
-      [12.8, 'o', `${userStr}@${srvStr}:~$ `],
-      [13.5, 'i', 'e'],
-      [13.6, 'o', 'e'],
-      [13.7, 'i', 'x'],
-      [13.8, 'o', 'x'],
-      [13.9, 'i', 'i'],
-      [14.0, 'o', 'i'],
-      [14.1, 'i', 't'],
-      [14.2, 'o', 't'],
-      [14.5, 'i', '\r'],
-      [14.6, 'o', '\r\nlogout\r\nConnection to target server closed.\r\n'],
-    ];
-  };
-
   // Load session recording
   useEffect(() => {
     if (!isOpen || !session) return;
@@ -170,8 +75,10 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
 
   // Clean ANSI colors and control codes for clean rendering
   const parseAnsiToText = (rawStr) => {
-    // Strip standard ANSI sequences for plain rendering
-    return rawStr.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    // Strip standard ECMA-48 ANSI escape sequences (colors, bracketed paste mode, cursor positions)
+    let clean = rawStr.replace(/\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '');
+    clean = clean.replace(/\r\n/g, '\n');
+    return clean;
   };
 
   // Render terminal output up to target time
@@ -311,19 +218,6 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
               <p className="text-xs text-slate-500 max-w-md text-center">
                 Keystroke recordings are created when an employee connects via SSH, executes commands, and closes the session.
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  const sample = generateSampleEvents(session);
-                  setEvents(sample);
-                  setTotalDuration(sample[sample.length - 1][0]);
-                  setIsPlaying(true);
-                }}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded border border-slate-700 transition"
-              >
-                Preview Simulated Demo (14s)
-              </button>
             </div>
           ) : terminalOutput ? (
             <>

@@ -9,11 +9,18 @@ if str(gateway_root) not in sys.path:
 
 from app.config import settings
 from app.ssh_server import start_gateway
+from app.revocation import revocation_listener
 
 
 async def main():
     print(f"SSH Gateway starting on {settings.ssh_host}:{settings.ssh_port}")
-    await start_gateway()
+    server = await start_gateway()
+    try:
+        await asyncio.Future()
+    finally:
+        server.close()
+        await server.wait_closed()
+        await revocation_listener.stop()
 
 
 if __name__ == "__main__":

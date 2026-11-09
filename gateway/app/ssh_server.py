@@ -10,7 +10,7 @@ from app.config import settings
 from app.policy import is_command_allowed
 from app.auth_client import check_access, AuthorizationError
 from app.events import (
-    session_started,
+    session_started as notify_session_started,
     session_ended,
     security_event,
     command_allowed,
@@ -58,6 +58,8 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
         self._term_size = (80, 24, 0, 0)
         self._term_modes = {}
         self._is_pty = False
+        self._shell_active = False
+        self._pending_input = []
 
         # Target connection & process for interactive PTY pipe
         self._target_conn = None
@@ -89,6 +91,9 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
 
     def connection_made(self, chan):
         self._chan = chan
+        # Raw byte streaming: bypass asyncssh default UTF-8 text encoding on server
+        # channel so raw PTY escape codes, banners, and binary bytes pipe without TypeError
+        chan.set_encoding(None)
 
         print(
             f"Gateway session connection created: "
@@ -116,7 +121,7 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
             self._recorder.start()
 
             # Notify backend + monitoring
-            await session_started(
+            await notify_session_started(
                 {
                     "sessionId": self._session_id,
                     "userId": self._user_id,
@@ -386,9 +391,15 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
     # =========================================================
 
     def shell_requested(self):
-        # Upgrade to bidirectional PTY streaming pipe to target
-        asyncio.create_task(self._start_interactive_pty())
+        self._shell_active = True
         return True
+
+    def session_started(self):
+        """
+        Called by AsyncSSH when the channel is fully open and ready for I/O.
+        """
+        if self._shell_active or self._is_pty:
+            asyncio.create_task(self._start_interactive_pty())
 
     async def _resolve_target(self):
         target_host = self._target_host
@@ -446,16 +457,25 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
             # Spawn interactive PTY process on target
             width, height = self._term_size[0], self._term_size[1]
             proc = await conn.create_process(
-                term_type=self._term_type,
-                term_size=(width, height),
-                term_modes=self._term_modes,
+                term_type=self._term_type if self._is_pty else None,
+                term_size=(width, height) if self._is_pty else None,
+                term_modes=self._term_modes if self._is_pty else None,
                 encoding=None,  # Raw byte streaming for full VT100/ANSI/curses fidelity
             )
             self._target_proc = proc
 
+            # Flush any early input queued while upstream SSH connection was establishing
+            if hasattr(self, "_pending_input") and self._pending_input:
+                for pending_data in self._pending_input:
+                    try:
+                        self._target_proc.stdin.write(pending_data)
+                    except Exception:
+                        pass
+                self._pending_input.clear()
+
             # Start streaming target stdout & stderr back to client
-            stdout_task = asyncio.create_task(self._forward_target_to_client(proc.stdout))
-            stderr_task = asyncio.create_task(self._forward_target_to_client(proc.stderr))
+            stdout_task = asyncio.create_task(self._forward_target_to_client(proc.stdout, is_stderr=False))
+            stderr_task = asyncio.create_task(self._forward_target_to_client(proc.stderr, is_stderr=True))
             self._forward_tasks.extend([stdout_task, stderr_task])
 
             # Wait for target process to finish
@@ -479,7 +499,7 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
             if self._chan:
                 self._chan.close()
 
-    async def _forward_target_to_client(self, stream):
+    async def _forward_target_to_client(self, stream, is_stderr: bool = False):
         if not stream:
             return
         try:
@@ -490,7 +510,10 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
 
                 self._recorder.record_output(chunk)
                 if self._chan:
-                    self._chan.write(chunk)
+                    if is_stderr:
+                        self._chan.write_stderr(chunk)
+                    else:
+                        self._chan.write(chunk)
         except asyncio.CancelledError:
             pass
         except Exception as exc:
@@ -525,24 +548,33 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
                 line, self._cmd_buffer = (
                     self._cmd_buffer.replace("\r", "\n").split("\n", 1)
                 )
-                line = line.strip()
 
-                if line and not is_command_allowed(line):
+                # Clean backspaces (\x7f and \x08) from buffered command
+                clean_chars = []
+                for ch in line:
+                    if ch in ('\x7f', '\x08'):
+                        if clean_chars:
+                            clean_chars.pop()
+                    else:
+                        clean_chars.append(ch)
+                clean_cmd = "".join(clean_chars).strip()
+
+                if clean_cmd and not is_command_allowed(clean_cmd):
                     # Blocked command attempt in interactive shell!
                     self._write(
                         "\r\n"
                         "[DENIED] Command is not allowed by gateway security policy.\r\n"
                     )
-                    asyncio.create_task(self._report_blocked_command(line))
-                    # Send Ctrl+C to cancel whatever was entered
+                    asyncio.create_task(self._report_blocked_command(clean_cmd))
+                    # Send Ctrl+C to cancel whatever was entered on target
                     raw_to_send = b"\x03"
                     try:
                         self._target_proc.stdin.write(raw_to_send)
                     except Exception:
                         pass
                     return
-                elif line:
-                    asyncio.create_task(self._report_allowed_command(line))
+                elif clean_cmd:
+                    asyncio.create_task(self._report_allowed_command(clean_cmd))
 
             # Stream input bytes to target process
             raw_bytes = data if isinstance(data, bytes) else data.encode("utf-8")
@@ -550,6 +582,14 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
                 self._target_proc.stdin.write(raw_bytes)
             except Exception as exc:
                 print(f"Error piping input to target stdin: {exc}")
+            return
+
+        # Queue input if interactive PTY is currently setting up
+        if self._is_pty or getattr(self, "_shell_active", False):
+            if not hasattr(self, "_pending_input"):
+                self._pending_input = []
+            raw_bytes = data if isinstance(data, bytes) else data.encode("utf-8")
+            self._pending_input.append(raw_bytes)
             return
 
         # Fallback for simple line-by-line commands (e.g. before PTY or tests)
@@ -612,6 +652,8 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
 
     def _write(self, text):
         if self._chan:
+            if isinstance(text, str):
+                text = text.encode("utf-8")
             self._chan.write(text)
 
     # =========================================================
@@ -852,11 +894,18 @@ async def start_gateway():
         f"SSH Gateway listening on {settings.ssh_host}:{settings.ssh_port}"
     )
 
+    return server
+
+
+async def _run_standalone():
+    server = await start_gateway()
     try:
         await asyncio.Future()
     finally:
+        server.close()
+        await server.wait_closed()
         await revocation_listener.stop()
 
 
 if __name__ == "__main__":
-    asyncio.run(start_gateway())
+    asyncio.run(_run_standalone())
