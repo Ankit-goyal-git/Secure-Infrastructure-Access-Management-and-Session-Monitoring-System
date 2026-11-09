@@ -38,11 +38,19 @@ router.get('/events', authenticate, async (req, res) => {
         result = 'TERMINATED';
       }
 
+      let hasRecording = false;
+      if (log.sessionId) {
+        const p1 = path.join(__dirname, '../../recordings', `${log.sessionId}.cast`);
+        const p2 = path.join(__dirname, '../../../recordings', `${log.sessionId}.cast`);
+        hasRecording = fs.existsSync(p1) || fs.existsSync(p2);
+      }
+
       return {
         event_id: log.id,
         timestamp: log.timestamp,
         event_type: log.eventType,
         session_id: log.sessionId,
+        has_recording: hasRecording,
         user_id: log.user ? `${log.user.name} (#${log.user.id})` : `User #${log.userId || 'N/A'}`,
         server_id: log.server ? `${log.server.name} (#${log.server.id})` : `Server #${log.serverId || 'N/A'}`,
         raw_user_id: log.userId,

@@ -15,9 +15,14 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
   const animFrameRef = useRef(null);
   const lastTickRef = useRef(null);
 
-  // Load session recording
-  useEffect(() => {
-    if (!isOpen || !session) return;
+  const sid = session?.session_id || session?.id;
+
+  const fetchRecording = async () => {
+    if (!sid) {
+      setError('No session ID associated with this audit log event.');
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -25,51 +30,43 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
     setIsPlaying(false);
     setTerminalOutput('');
 
-    const sid = session.session_id || session.id;
+    try {
+      const res = await axiosClient.get(`/audit/sessions/${sid}/recording`);
+      const text = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+      const lines = text.trim().split('\n');
 
-    const fetchRecording = async () => {
-      try {
-        if (sid) {
-          const res = await axiosClient.get(`/audit/sessions/${sid}/recording`);
-          const text = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-          const lines = text.trim().split('\n');
-
-          const parsedEvents = [];
-          for (let i = 1; i < lines.length; i++) {
-            try {
-              const ev = JSON.parse(lines[i]);
-              if (Array.isArray(ev) && ev.length >= 3) {
-                parsedEvents.push(ev);
-              }
-            } catch (pErr) {
-              // Skip malformed line
-            }
+      const parsedEvents = [];
+      for (let i = 1; i < lines.length; i++) {
+        try {
+          const ev = JSON.parse(lines[i]);
+          if (Array.isArray(ev) && ev.length >= 3) {
+            parsedEvents.push(ev);
           }
-
-          if (parsedEvents.length > 0) {
-            setEvents(parsedEvents);
-            const maxT = parsedEvents[parsedEvents.length - 1][0];
-            setTotalDuration(Math.max(maxT, 1));
-            setIsLoading(false);
-            setIsPlaying(true);
-            return;
-          } else {
-            setError(`Recording file for session ${sid} contains no keystroke events.`);
-            setIsLoading(false);
-            return;
-          }
-        } else {
-          setError('No session ID associated with this audit log event.');
-          setIsLoading(false);
-          return;
+        } catch (pErr) {
+          // Skip malformed line
         }
-      } catch (err) {
-        console.warn('Failed to load recording file from backend:', err);
-        setError(`Recording for session "${sid}" was not found on the server.`);
+      }
+
+      if (parsedEvents.length > 0) {
+        setEvents(parsedEvents);
+        const maxT = parsedEvents[parsedEvents.length - 1][0];
+        setTotalDuration(Math.max(maxT, 1));
+        setIsLoading(false);
+        setIsPlaying(true);
+      } else {
+        setError(`Recording for session ${String(sid).slice(0, 8)} contains no keystroke events.`);
         setIsLoading(false);
       }
-    };
+    } catch (err) {
+      console.warn('Failed to load recording file from backend:', err);
+      setError(`Recording for session "${String(sid).slice(0, 8)}..." is not yet ready or was not found.`);
+      setIsLoading(false);
+    }
+  };
 
+  // Load session recording when modal opens
+  useEffect(() => {
+    if (!isOpen || !session) return;
     fetchRecording();
   }, [isOpen, session]);
 
@@ -178,8 +175,13 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
             <span className="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
             <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
             <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
-            <span className="ml-3 font-mono text-xs text-slate-400">
-              Session Replay: <span className="text-slate-200 font-semibold">{String(sid).slice(0, 12)}...</span>
+            <span className="ml-3 font-mono text-xs text-slate-300">
+              Terminal Replay: <span className="text-emerald-400 font-semibold">{session?.user_id || 'Employee'}</span>
+              <span className="text-slate-500 mx-1.5">@</span>
+              <span className="text-cyan-400 font-semibold">{session?.server_id || 'target'}</span>
+            </span>
+            <span className="text-[11px] font-mono text-slate-500 ml-2 hidden sm:inline">
+              ({String(sid).slice(0, 8)}...)
             </span>
           </div>
 
@@ -189,7 +191,7 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
             </span>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white transition p-1 hover:bg-slate-800 rounded"
+              className="text-slate-400 hover:text-white transition p-1 hover:bg-slate-800 rounded cursor-pointer"
               title="Close Player"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,14 +212,22 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
               Loading keystroke playback...
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
+            <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3 px-6 text-center">
               <div className="text-amber-400 text-sm font-semibold flex items-center gap-2">
                 <span>⚠️</span>
                 <span>{error}</span>
               </div>
-              <p className="text-xs text-slate-500 max-w-md text-center">
-                Keystroke recordings are created when an employee connects via SSH, executes commands, and closes the session.
+              <p className="text-xs text-slate-400 max-w-md">
+                If this terminal session is still active or was just closed, make sure you typed <code className="text-emerald-400 bg-slate-800 px-1.5 py-0.5 rounded font-mono">exit</code> in your SSH client to upload the recording file.
               </p>
+              <button
+                type="button"
+                onClick={fetchRecording}
+                className="mt-2 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-medium rounded-md shadow transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>🔄</span>
+                <span>Retry Loading Recording</span>
+              </button>
             </div>
           ) : terminalOutput ? (
             <>

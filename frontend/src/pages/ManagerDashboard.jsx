@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import PendingRequestsList from '../components/specific/PendingRequestsList';
 import ActiveSessionsList from '../components/specific/ActiveSessionsList';
 import { managerService } from '../services/managerService';
@@ -68,9 +68,18 @@ export default function ManagerDashboard() {
           <h1 className="text-2xl font-bold text-white">Manager Portal</h1>
           <p className="text-sm text-slate-400">Review and authorize temporary infrastructure access.</p>
         </div>
-        <button onClick={handleLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 rounded-md transition">
-          Sign Out
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/audit"
+            className="px-3.5 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-md text-sm font-medium transition flex items-center gap-2"
+          >
+            <span>🛡️</span>
+            <span>Audit Logs & Replays</span>
+          </Link>
+          <button onClick={handleLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 rounded-md transition cursor-pointer">
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <main className="max-w-5xl mx-auto space-y-8">
