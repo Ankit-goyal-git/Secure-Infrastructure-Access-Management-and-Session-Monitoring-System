@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AccessRequestForm from '../components/specific/AccessRequestForm';
 import RequestHistoryTable from '../components/specific/RequestHistoryTable';
+import ActiveGrantsGrid from '../components/specific/ActiveGrantsGrid';
 import { employeeService } from '../services/employeeService';
 
 export default function EmployeeDashboard() {
@@ -10,7 +11,6 @@ export default function EmployeeDashboard() {
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
   const [revocationToast, setRevocationToast] = useState(null);
 
   // Track previously approved request IDs to detect real-time manager revocations
@@ -87,19 +87,25 @@ export default function EmployeeDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Find all approved requests to highlight for easy connection
-  const approvedRequests = useMemo(() => {
-    return history.filter((req) => req.status === 'approved');
-  }, [history]);
+  // Filter all approved, active, non-expired grants (deduplicated by server)
+  const activeGrants = useMemo(() => {
+    const now = Date.now();
+    const approved = history.filter((req) => {
+      if (req.status !== 'approved') return false;
+      if (req.expiresAt && new Date(req.expiresAt).getTime() <= now) return false;
+      return true;
+    });
 
-  const handleCopyCommand = (req) => {
-    const uId = req.userId || currentUser.id || 1;
-    const sId = req.serverId;
-    const cmd = `ssh employee_${uId}_server_${sId}@localhost -p 2222`;
-    navigator.clipboard.writeText(cmd);
-    setCopiedId(req.id);
-    setTimeout(() => setCopiedId(null), 2500);
-  };
+    // Deduplicate by serverId so the latest active grant per server is displayed
+    const serverMap = new Map();
+    for (const req of approved) {
+      const sId = String(req.serverId);
+      if (!serverMap.has(sId)) {
+        serverMap.set(sId, req);
+      }
+    }
+    return Array.from(serverMap.values());
+  }, [history]);
 
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
@@ -175,76 +181,12 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-      {/* Prominent Active Ready-to-Connect Banners for All Approved Servers */}
-      {approvedRequests.length > 0 && (
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-              <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-wider">
-                Active SSH Access ({approvedRequests.length} {approvedRequests.length === 1 ? 'Server' : 'Servers'} Ready)
-              </h3>
-            </div>
-            <span className="text-xs text-slate-400 hidden sm:inline">
-              🔑 Enter your <strong>Web Portal Password</strong> when prompted by SSH
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3">
-            {approvedRequests.map((req) => {
-              const uId = req.userId || currentUser.id || 1;
-              const sId = req.serverId;
-              const cmd = `ssh employee_${uId}_server_${sId}@localhost -p 2222`;
-              const isCopied = copiedId === req.id;
-
-              return (
-                <div
-                  key={req.id}
-                  className="p-4 bg-gradient-to-r from-emerald-950/70 via-slate-800 to-slate-800 border-2 border-emerald-500/60 rounded-xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3"
-                >
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-white text-sm">
-                        {req.serverName || `Server #${sId}`}
-                      </span>
-                      <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-mono">
-                        Target #{sId}
-                      </span>
-                      {req.department && (
-                        <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">
-                          {req.department}
-                        </span>
-                      )}
-                      <span className="text-xs text-slate-400">
-                        • {req.requestedDuration} mins approved
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 mt-1">
-                      Reason: <span className="text-slate-200 italic font-mono">"{req.reason}"</span>
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="bg-black/70 border border-emerald-500/50 rounded-lg px-3 py-1.5 font-mono text-xs text-emerald-300 select-all">
-                      {cmd}
-                    </div>
-                    <button
-                      onClick={() => handleCopyCommand(req)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shadow flex items-center gap-1 whitespace-nowrap cursor-pointer ${
-                        isCopied
-                          ? 'bg-emerald-500 text-slate-900 font-bold'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                      }`}
-                    >
-                      {isCopied ? '✓ Copied!' : '📋 Copy SSH Command'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Multi-Server Active JIT Grants Grid with Independent Live Countdown Timers */}
+      <ActiveGrantsGrid
+        grants={activeGrants}
+        currentUserId={currentUser.id}
+        onExpire={() => fetchData(true)}
+      />
 
       {/* Main Content Grid */}
       {isLoading ? (

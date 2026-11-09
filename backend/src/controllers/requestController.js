@@ -96,15 +96,16 @@ exports.getMyRequests = async (req, res) => {
     const formatted = await Promise.all(
       requests.map(async (reqItem) => {
         let currentStatus = reqItem.status;
+        let grant = null;
 
-        // If marked approved, verify if underlying grant was revoked or expired
-        if (currentStatus === 'approved') {
-          const grant = await AccessGrant.findOne({
+        // If marked approved or was previously approved, fetch underlying grant
+        if (currentStatus === 'approved' || currentStatus === 'revoked' || currentStatus === 'expired') {
+          grant = await AccessGrant.findOne({
             where: { requestId: reqItem.id },
             order: [['created_at', 'DESC']],
           });
 
-          if (grant) {
+          if (grant && currentStatus === 'approved') {
             if (grant.status === 'revoked') {
               currentStatus = 'revoked';
               // Self-heal request status in database
@@ -128,6 +129,9 @@ exports.getMyRequests = async (req, res) => {
           reason: reqItem.reason,
           status: currentStatus,
           createdAt: reqItem.createdAt,
+          expiresAt: grant ? grant.expiresAt : null,
+          startedAt: grant ? grant.startedAt : null,
+          grantId: grant ? grant.id : null,
         };
       })
     );
