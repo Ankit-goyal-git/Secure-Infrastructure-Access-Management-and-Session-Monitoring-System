@@ -23,6 +23,12 @@ exports.createRequest = async (req, res) => {
       },
     });
 
+    if (existingRequest) {
+      return res.status(409).json({
+        error: 'You already have a pending access request for this server.',
+      });
+    }
+
     const { AccessGrant } = require('../models');
     const existingGrant = await AccessGrant.findOne({
       where: {
@@ -30,12 +36,19 @@ exports.createRequest = async (req, res) => {
         serverId,
         status: 'active',
       },
+      order: [['created_at', 'DESC']],
     });
 
-    if (existingRequest || existingGrant) {
-      return res.status(409).json({
-        error: 'You already have an active grant or a pending request for this server.',
-      });
+    if (existingGrant) {
+      if (new Date(existingGrant.expiresAt) <= new Date()) {
+        // Expired TTL - clean up SQL status
+        existingGrant.status = 'expired';
+        await existingGrant.save().catch(() => {});
+      } else {
+        return res.status(409).json({
+          error: 'You already have an active grant for this server.',
+        });
+      }
     }
 
     // 2. Create the request in the database
@@ -65,6 +78,7 @@ exports.createRequest = async (req, res) => {
 
 exports.getMyRequests = async (req, res) => {
   try {
+    const { AccessGrant } = require('../models');
     const requests = await AccessRequest.findAll({
       where: { userId: req.user.id },
       include: [
@@ -77,20 +91,46 @@ exports.getMyRequests = async (req, res) => {
       order: [['created_at', 'DESC']],
     });
 
-    // Map to API response shapes format
-    const formatted = requests.map(reqItem => ({
-      id: reqItem.id,
-      userId: reqItem.userId,
-      serverId: reqItem.serverId,
-      serverName: reqItem.server ? reqItem.server.name : 'Unknown Server',
-      serverHost: reqItem.server ? reqItem.server.host : null,
-      serverPort: reqItem.server ? reqItem.server.port : 22,
-      department: reqItem.server ? reqItem.server.department : null,
-      requestedDuration: reqItem.requestedDuration,
-      reason: reqItem.reason,
-      status: reqItem.status,
-      createdAt: reqItem.createdAt,
-    }));
+    // Map to API response shapes format while reconciling grant status in real-time
+    const now = new Date();
+    const formatted = await Promise.all(
+      requests.map(async (reqItem) => {
+        let currentStatus = reqItem.status;
+
+        // If marked approved, verify if underlying grant was revoked or expired
+        if (currentStatus === 'approved') {
+          const grant = await AccessGrant.findOne({
+            where: { requestId: reqItem.id },
+            order: [['created_at', 'DESC']],
+          });
+
+          if (grant) {
+            if (grant.status === 'revoked') {
+              currentStatus = 'revoked';
+              // Self-heal request status in database
+              reqItem.status = 'revoked';
+              await reqItem.save().catch(() => {});
+            } else if (new Date(grant.expiresAt) <= now) {
+              currentStatus = 'expired';
+            }
+          }
+        }
+
+        return {
+          id: reqItem.id,
+          userId: reqItem.userId,
+          serverId: reqItem.serverId,
+          serverName: reqItem.server ? reqItem.server.name : 'Unknown Server',
+          serverHost: reqItem.server ? reqItem.server.host : null,
+          serverPort: reqItem.server ? reqItem.server.port : 22,
+          department: reqItem.server ? reqItem.server.department : null,
+          requestedDuration: reqItem.requestedDuration,
+          reason: reqItem.reason,
+          status: currentStatus,
+          createdAt: reqItem.createdAt,
+        };
+      })
+    );
 
     return res.status(200).json(formatted);
   } catch (error) {

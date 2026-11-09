@@ -229,7 +229,7 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
         if self._chan:
             self._chan.close()
 
-    async def sever_connection(self, reason: str = "admin_termination"):
+    async def sever_connection(self, reason: str = "manager_revocation"):
         """
         Active Revocation: Instantly severs the TCP connection when a manager
         revokes access from the dashboard.
@@ -244,12 +244,15 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
             self._write(
                 "\r\n\r\n"
                 "=====================================================\r\n"
-                "[ACCESS REVOKED] Your access grant has been revoked\r\n"
-                "by an administrator. Session is terminating now.\r\n"
+                "[ACCESS REVOKED] Your session has been revoked by a manager.\r\n"
+                "Connection severed.\r\n"
                 "=====================================================\r\n"
             )
         except Exception:
             pass
+
+        # Brief yield to ensure socket pushes write buffer to terminal before channel tear-down
+        await asyncio.sleep(0.08)
 
         # Terminate forwarding tasks
         for task in self._forward_tasks:
@@ -269,8 +272,12 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
             except Exception:
                 pass
 
-        # Close client SSH channel
+        # Close client SSH channel cleanly with exit status 1
         if self._chan:
+            try:
+                self._chan.exit(1)
+            except Exception:
+                pass
             try:
                 self._chan.close()
             except Exception:
@@ -449,8 +456,8 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
                 known_hosts=None,
                 config=None,
                 agent_path=None,
-                x509_trusted_cert_paths=None,
-                x509_trusted_certs=None,
+                x509_trusted_cert_paths=[],
+                x509_trusted_certs=[],
             )
             self._target_conn = conn
 
@@ -753,8 +760,8 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
             known_hosts=None,
             config=None,
             agent_path=None,
-            x509_trusted_cert_paths=None,
-            x509_trusted_certs=None,
+            x509_trusted_cert_paths=[],
+            x509_trusted_certs=[],
         ) as conn:
             result = await conn.run(command, check=False)
             output = result.stdout or ""

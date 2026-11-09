@@ -60,6 +60,7 @@ const Session = sequelize.define('Session', {
         'policy_violation',
         'gateway_error',
         'admin_termination',
+        'manager_revocation',
         'revoked',
         null,
       ]],

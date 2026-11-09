@@ -31,7 +31,7 @@ const AccessRequest = sequelize.define('AccessRequest', {
     allowNull: false,
     defaultValue: 'pending',
     validate: {
-      isIn: [['pending', 'approved', 'denied', 'cancelled', 'expired']],
+      isIn: [['pending', 'approved', 'denied', 'cancelled', 'expired', 'revoked']],
     },
   },
   createdAt: {

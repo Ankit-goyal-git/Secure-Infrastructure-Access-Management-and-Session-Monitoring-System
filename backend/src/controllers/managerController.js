@@ -205,9 +205,21 @@ exports.revokeGrant = async (req, res) => {
       return res.status(400).json({ error: 'Grant is not active.' });
     }
 
-    // 1. Revoke SQL status
+    // 1. Revoke SQL status on AccessGrant
     grant.status = 'revoked';
     await grant.save();
+
+    // 1b. Update associated AccessRequest status to 'revoked'
+    if (grant.requestId) {
+      await AccessRequest.update(
+        { status: 'revoked' },
+        { where: { id: grant.requestId } }
+      );
+    }
+    await AccessRequest.update(
+      { status: 'revoked' },
+      { where: { userId: grant.userId, serverId: grant.serverId, status: 'approved' } }
+    );
 
     // 2. Evict cache from Redis immediately
     const redisKey = `access:${grant.userId}:${grant.serverId}`;
@@ -223,7 +235,7 @@ exports.revokeGrant = async (req, res) => {
     for (const session of activeSessions) {
       session.status = 'terminated';
       session.endedAt = new Date();
-      session.terminationReason = 'admin_termination';
+      session.terminationReason = 'manager_revocation';
       await session.save();
 
       // Log session end event
@@ -232,7 +244,7 @@ exports.revokeGrant = async (req, res) => {
         userId: session.userId,
         serverId: session.serverId,
         eventType: 'SESSION_ENDED',
-        eventData: { terminationReason: 'admin_termination', revokedBy: req.user.id },
+        eventData: { terminationReason: 'manager_revocation', revokedBy: req.user.id },
         timestamp: session.endedAt,
       });
 
@@ -243,7 +255,7 @@ exports.revokeGrant = async (req, res) => {
           sessionId: session.id,
           userId: session.userId,
           serverId: session.serverId,
-          reason: 'admin_termination',
+          reason: 'manager_revocation',
           revokedBy: req.user.id,
         });
         await redisClient.publish('gateway:revocations', payload);
@@ -251,6 +263,21 @@ exports.revokeGrant = async (req, res) => {
       } catch (pubErr) {
         console.error('Failed to publish revocation to Redis Pub/Sub:', pubErr);
       }
+    }
+
+    // Broadcast grant revocation even if no active session in DB (to catch in-flight gateway connects)
+    try {
+      const grantRevokePayload = JSON.stringify({
+        action: 'REVOKE',
+        sessionId: null,
+        userId: grant.userId,
+        serverId: grant.serverId,
+        reason: 'manager_revocation',
+        revokedBy: req.user.id,
+      });
+      await redisClient.publish('gateway:revocations', grantRevokePayload);
+    } catch (pubErr) {
+      console.error('Failed to publish grant revocation to Redis:', pubErr);
     }
 
     // 4. Log the overall access revocation event
@@ -349,7 +376,7 @@ exports.revokeActiveSession = async (req, res) => {
   const { reason = 'Revoked by manager' } = req.body;
 
   try {
-    const { Session, AccessGrant, AuditLog } = require('../models');
+    const { Session, AccessGrant, AccessRequest, AuditLog } = require('../models');
     const session = await Session.findByPk(id);
 
     if (!session) {
@@ -363,16 +390,38 @@ exports.revokeActiveSession = async (req, res) => {
     // 1. Terminate session in SQL
     session.status = 'terminated';
     session.endedAt = new Date();
-    session.terminationReason = 'admin_termination';
+    session.terminationReason = 'manager_revocation';
     await session.save();
 
-    // 2. Revoke associated grant if present
+    // 2. Revoke associated grant and request if present
+    let grant = null;
     if (session.grantId) {
-      await AccessGrant.update(
-        { status: 'revoked' },
-        { where: { id: session.grantId } }
-      );
+      grant = await AccessGrant.findByPk(session.grantId);
     }
+    if (!grant) {
+      grant = await AccessGrant.findOne({
+        where: { userId: session.userId, serverId: session.serverId, status: 'active' },
+        order: [['created_at', 'DESC']],
+      });
+    }
+
+    if (grant) {
+      grant.status = 'revoked';
+      await grant.save();
+
+      if (grant.requestId) {
+        await AccessRequest.update(
+          { status: 'revoked' },
+          { where: { id: grant.requestId } }
+        );
+      }
+    }
+
+    // Ensure any approved access request for this user and server is marked revoked
+    await AccessRequest.update(
+      { status: 'revoked' },
+      { where: { userId: session.userId, serverId: session.serverId, status: 'approved' } }
+    );
 
     // 3. Evict cache from Redis immediately
     const redisKey = `access:${session.userId}:${session.serverId}`;
@@ -384,7 +433,7 @@ exports.revokeActiveSession = async (req, res) => {
       sessionId: session.id,
       userId: session.userId,
       serverId: session.serverId,
-      reason: 'admin_termination',
+      reason: 'manager_revocation',
       revokedBy: req.user.id,
       note: reason,
       timestamp: new Date().toISOString()

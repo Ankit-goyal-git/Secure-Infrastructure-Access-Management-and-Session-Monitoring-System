@@ -77,6 +77,10 @@ export default function RequestHistoryTable({ history = [], currentUserId }) {
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                             : isPending
                             ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                            : req.status === 'revoked'
+                            ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                            : req.status === 'expired'
+                            ? 'bg-slate-800 text-slate-400 border border-slate-700'
                             : 'bg-red-500/10 text-red-400 border border-red-500/30'
                         }`}
                       >
@@ -86,6 +90,10 @@ export default function RequestHistoryTable({ history = [], currentUserId }) {
                               ? 'bg-emerald-400'
                               : isPending
                               ? 'bg-amber-400 animate-ping'
+                              : req.status === 'revoked'
+                              ? 'bg-red-400'
+                              : req.status === 'expired'
+                              ? 'bg-slate-500'
                               : 'bg-red-400'
                           }`}
                         />
@@ -116,9 +124,18 @@ export default function RequestHistoryTable({ history = [], currentUserId }) {
                         <span className="text-xs text-amber-400/80 italic font-sans">
                           Pending Manager Authorization
                         </span>
+                      ) : req.status === 'revoked' ? (
+                        <span className="text-xs text-red-400 font-semibold font-sans inline-flex items-center gap-1">
+                          <span>⛔</span>
+                          <span>Revoked by Manager</span>
+                        </span>
+                      ) : req.status === 'expired' ? (
+                        <span className="text-xs text-slate-500 font-sans">
+                          Access Expired
+                        </span>
                       ) : (
                         <span className="text-xs text-slate-500 font-sans">
-                          Access Denied
+                          Request Denied
                         </span>
                       )}
                     </td>
