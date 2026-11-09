@@ -41,3 +41,4 @@ export const adminService = {
     return response.data;
   },
 };
+

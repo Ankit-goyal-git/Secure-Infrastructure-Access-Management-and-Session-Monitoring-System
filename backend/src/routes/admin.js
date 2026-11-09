@@ -13,3 +13,4 @@ router.patch('/users/:id/role', adminController.updateUserRole);
 router.delete('/users/:id', adminController.deleteUser);
 
 module.exports = router;
+
