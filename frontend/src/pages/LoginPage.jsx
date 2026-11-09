@@ -41,6 +41,9 @@ export default function LoginPage() {
   const [activeQuickRole, setActiveQuickRole] = useState(null);
   const navigate = useNavigate();
 
+  // 1-Click demo switcher is enabled in development or when explicitly configured via VITE_ENABLE_DEMO_LOGIN=true
+  const isDemoEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
+
   const executeLogin = async (loginEmail, loginPassword) => {
     setError('');
     setIsLoading(true);
@@ -100,61 +103,65 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* 1-Click Demo Role Switcher Bar */}
-        <div className="mb-6 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <span>⚡</span>
-              <span>1-Click Demo Login</span>
-            </span>
-            <span className="text-[10px] text-slate-500">Auto-routes to role</span>
-          </div>
+        {/* 1-Click Demo Role Switcher Bar (Automatically disabled in production builds) */}
+        {isDemoEnabled && (
+          <>
+            <div className="mb-6 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+              <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <span>⚡</span>
+                  <span>1-Click Demo Login (Dev Mode)</span>
+                </span>
+                <span className="text-[10px] text-slate-500">Auto-routes to role</span>
+              </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {DEMO_ACCOUNTS.map((acc) => {
-              const isSelected = activeQuickRole === acc.role;
-              return (
-                <button
-                  key={acc.role}
-                  type="button"
-                  onClick={() => handleQuickSign(acc)}
-                  disabled={isLoading}
-                  className={`p-2 rounded-lg border text-left transition flex flex-col justify-between cursor-pointer group hover:scale-[1.02] ${
-                    isSelected
-                      ? 'bg-blue-600 text-white border-blue-400 shadow-md'
-                      : 'bg-slate-900/90 hover:bg-slate-850 border-slate-750 hover:border-slate-600'
-                  }`}
-                  title={`Sign in instantly as ${acc.name} (${acc.role})`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-base">{acc.icon}</span>
-                    <span
-                      className={`text-[9px] px-1 py-0.2 rounded font-mono font-semibold uppercase ${acc.badge}`}
+              <div className="grid grid-cols-3 gap-2">
+                {DEMO_ACCOUNTS.map((acc) => {
+                  const isSelected = activeQuickRole === acc.role;
+                  return (
+                    <button
+                      key={acc.role}
+                      type="button"
+                      onClick={() => handleQuickSign(acc)}
+                      disabled={isLoading}
+                      className={`p-2 rounded-lg border text-left transition flex flex-col justify-between cursor-pointer group hover:scale-[1.02] ${
+                        isSelected
+                          ? 'bg-blue-600 text-white border-blue-400 shadow-md'
+                          : 'bg-slate-900/90 hover:bg-slate-850 border-slate-750 hover:border-slate-600'
+                      }`}
+                      title={`Sign in instantly as ${acc.name} (${acc.role})`}
                     >
-                      {acc.role}
-                    </span>
-                  </div>
-                  <div className="mt-1.5">
-                    <div className="text-[11px] font-bold text-white group-hover:text-blue-300 truncate">
-                      {acc.name.split(' ')[0]}
-                    </div>
-                    <div className="text-[9px] text-slate-400 truncate font-mono">
-                      {acc.email.split('@')[0]}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base">{acc.icon}</span>
+                        <span
+                          className={`text-[9px] px-1 py-0.2 rounded font-mono font-semibold uppercase ${acc.badge}`}
+                        >
+                          {acc.role}
+                        </span>
+                      </div>
+                      <div className="mt-1.5">
+                        <div className="text-[11px] font-bold text-white group-hover:text-blue-300 truncate">
+                          {acc.name.split(' ')[0]}
+                        </div>
+                        <div className="text-[9px] text-slate-400 truncate font-mono">
+                          {acc.email.split('@')[0]}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-        <div className="relative flex items-center justify-center my-4">
-          <div className="border-t border-slate-800 w-full" />
-          <span className="bg-slate-900 px-3 text-[11px] text-slate-500 font-medium uppercase tracking-wider">
-            or enter credentials
-          </span>
-          <div className="border-t border-slate-800 w-full" />
-        </div>
+            <div className="relative flex items-center justify-center my-4">
+              <div className="border-t border-slate-800 w-full" />
+              <span className="bg-slate-900 px-3 text-[11px] text-slate-500 font-medium uppercase tracking-wider">
+                or enter credentials
+              </span>
+              <div className="border-t border-slate-800 w-full" />
+            </div>
+          </>
+        )}
 
         {/* Error Alert */}
         {error && (
