@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import Navbar from '../components/common/Navbar';
 import { auditService } from '../services/auditService';
 import AsciinemaPlayerModal from '../components/specific/AsciinemaPlayerModal';
 
 export default function AuditView() {
-  const navigate = useNavigate();
   const [auditLogs, setAuditLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastSynced, setLastSynced] = useState(new Date());
@@ -45,11 +44,7 @@ export default function AuditView() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
+
 
   // Helper for human-readable relative time
   const formatRelativeTime = (isoString) => {
@@ -164,50 +159,36 @@ export default function AuditView() {
   }, [auditLogs, searchTerm]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans">
-      {/* Header Bar */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between pb-6 mb-8 border-b border-slate-800 gap-4 max-w-7xl mx-auto">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span>Security Audit & Session Replays</span>
-            </h1>
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Sync
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Review terminal keystrokes, policy enforcement actions, and active/completed SSH proxy sessions.
-          </p>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+      <Navbar />
 
-        <div className="flex items-center gap-3 self-end md:self-auto">
-          <Link
-            to="/manager"
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow-sm"
-          >
-            <span>👔</span>
-            <span>Manager Portal</span>
-          </Link>
+      <main className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-800 gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Security Audit & Session Replays</span>
+              </h1>
+              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Live Sync (4s)
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Review terminal keystrokes, policy enforcement actions, and replay authentic interactive SSH proxy sessions.
+            </p>
+          </div>
+
           <button
             onClick={() => fetchLogs(false)}
-            className="px-3.5 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-lg text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3.5 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-sm self-start md:self-auto"
             title="Refresh logs immediately"
           >
             <span>🔄</span>
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs transition cursor-pointer"
-          >
-            Sign Out
+            <span>Refresh Audit Feed</span>
           </button>
         </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto space-y-6">
         {/* Navigation Tabs & Search Toolbar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-900 p-2.5 rounded-xl border border-slate-800">
           <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-lg border border-slate-800/80">

@@ -10,6 +10,7 @@ app.use(express.json());
 
 // Mount routers
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
 app.use('/api/servers', require('./routes/servers'));
 app.use('/api/access-requests', require('./routes/requests'));
 app.use('/api/manager', require('./routes/manager'));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import Navbar from '../components/common/Navbar';
 import AccessRequestForm from '../components/specific/AccessRequestForm';
 import RequestHistoryTable from '../components/specific/RequestHistoryTable';
 import ActiveGrantsGrid from '../components/specific/ActiveGrantsGrid';
@@ -107,56 +107,30 @@ export default function EmployeeDashboard() {
     return Array.from(serverMap.values());
   }, [history]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
-
-  // Auto-dismiss revocation notification after 8 seconds
-  useEffect(() => {
-    if (revocationToast) {
-      const timer = setTimeout(() => {
-        setRevocationToast(null);
-      }, 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [revocationToast]);
-
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-6 font-sans">
-      {/* Header */}
-      <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 border-b border-slate-700 pb-4 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Employee Access Portal</h1>
-            <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-semibold">
-              JIT Session Gateway
-            </span>
-          </div>
-          <p className="text-sm text-slate-400 mt-1">
-            Logged in as <span className="text-slate-200 font-semibold">{currentUser.name || 'Employee'}</span> ({currentUser.email || 'employee@example.com'}) • User ID: <span className="font-mono text-blue-400">{currentUser.id || 1}</span>
-          </p>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+      <Navbar />
 
-        <div className="flex items-center gap-3">
+      <main className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Sub-Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Employee Bastion Gateway</h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Submit Just-In-Time access requests and connect via temporary credentials.
+            </p>
+          </div>
+
           <button
             onClick={() => fetchData(false)}
             disabled={isRefreshing}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-xs font-medium border border-slate-700 rounded-md transition flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-slate-300 text-xs font-medium border border-slate-750 rounded-lg transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
             title="Refresh status now"
           >
             <span className={isRefreshing ? 'animate-spin' : ''}>↻</span>
             <span>{isRefreshing ? 'Checking...' : 'Refresh Status'}</span>
           </button>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 rounded-md text-xs font-medium transition"
-          >
-            Sign Out
-          </button>
         </div>
-      </header>
 
       {/* Real-time Revocation Alert Toast */}
       {revocationToast && (
@@ -201,6 +175,7 @@ export default function EmployeeDashboard() {
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 }

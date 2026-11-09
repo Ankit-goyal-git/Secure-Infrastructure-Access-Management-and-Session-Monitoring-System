@@ -216,3 +216,4 @@ export default function ActiveGrantsGrid({ grants = [], currentUserId, onExpire 
     </div>
   );
 }
+

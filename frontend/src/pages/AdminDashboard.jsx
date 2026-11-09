@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import Navbar from '../components/common/Navbar';
+import UserManagementTab from '../components/specific/UserManagementTab';
 import { serverService } from '../services/serverService';
 import ServerModal from '../components/specific/ServerModal';
 
@@ -13,9 +15,18 @@ const DEPARTMENTS = [
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('servers'); // 'servers' | 'users'
   const [servers, setServers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user')) || {};
+    } catch {
+      return {};
+    }
+  }, []);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,51 +168,60 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-6 font-sans">
-      {/* Top Header */}
-      <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 border-b border-slate-700 pb-4 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Admin Console</h1>
-            <span className="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-2.5 py-0.5 rounded-full font-semibold">
-              Infrastructure Control
-            </span>
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+      <Navbar />
+
+      <main className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Admin Console Header & Sub-Navigation Tabs */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-800 gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-white tracking-tight">Admin Console</h1>
+              <span className="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-full font-semibold font-mono">
+                Platform Root Control
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Zero-downtime server provisioning, upstream credentials vault, and team role-based access control.
+            </p>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
-            Zero-downtime server inventory, dynamic upstream routing, and connectivity diagnostics.
-          </p>
+
+          {/* Sub-Tabs: Servers vs Users */}
+          <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl">
+            <button
+              onClick={() => setActiveTab('servers')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                activeTab === 'servers'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <span>🖥️</span>
+              <span>Target Servers ({servers.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                activeTab === 'users'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <span>👥</span>
+              <span>Team & Roles</span>
+            </button>
+          </div>
         </div>
 
-        {/* Global Navigation Shortcuts */}
-        <div className="flex items-center gap-3">
-          <Link
-            to="/manager"
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 rounded-md transition"
-          >
-            Manager Portal
-          </Link>
-          <Link
-            to="/employee"
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 rounded-md transition"
-          >
-            Employee Portal
-          </Link>
-          <Link
-            to="/audit"
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 rounded-md transition"
-          >
-            Audit Replay
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium border border-red-500/30 rounded-md transition"
-          >
-            Sign Out
-          </button>
-        </div>
-      </header>
+        {/* Tab 2: Team & Role Management */}
+        {activeTab === 'users' && (
+          <UserManagementTab currentAdminId={currentUser.id} />
+        )}
 
-      <main className="max-w-7xl mx-auto space-y-6">
+        {/* Tab 1: Target Servers Inventory */}
+        {activeTab === 'servers' && (
+          <div className="space-y-6">
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-4">
@@ -441,6 +461,8 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+        </div>
+        )}
       </main>
 
       {/* Provision / Edit Server Modal */}
