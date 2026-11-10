@@ -214,13 +214,15 @@ exports.logAuditEvent = async (req, res) => {
 
 // 5. POST /internal/security-events
 exports.logSecurityEvent = async (req, res) => {
-  const { sessionId, userId, serverId, rule, severity, description } = req.body;
+  const { sessionId, userId, serverId, rule, severity, description, command } = req.body;
 
   if (!rule || !severity || !description) {
     return res.status(400).json({ error: 'rule, severity, and description are required.' });
   }
 
   try {
+    const cmd = command || (description && description.includes(': ') ? description.split(': ').slice(1).join(': ') : null);
+
     // Create Security Alert record
     await SecurityAlert.create({
       sessionId,
@@ -238,12 +240,17 @@ exports.logSecurityEvent = async (req, res) => {
       userId,
       serverId,
       eventType: 'SECURITY_ALERT',
-      eventData: { rule, severity, description },
+      eventData: { 
+        rule, 
+        severity, 
+        description, 
+        command: cmd 
+      },
       timestamp: new Date()
     });
 
     // Auto-termination trigger for high-severity violations
-    const shouldTerminate = ['high', 'critical'].includes(severity.toLowerCase());
+    const shouldTerminate = ['critical'].includes(severity.toLowerCase());
 
     return res.status(200).json({
       success: true,

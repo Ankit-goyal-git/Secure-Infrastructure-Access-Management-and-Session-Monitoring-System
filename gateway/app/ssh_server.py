@@ -241,13 +241,16 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
         self._end_reason = reason
 
         try:
-            self._write(
+            sever_banner = (
                 "\r\n\r\n"
                 "=====================================================\r\n"
                 "[ACCESS REVOKED] Your session has been revoked by a manager.\r\n"
                 "Connection severed.\r\n"
                 "=====================================================\r\n"
             )
+            self._write(sever_banner)
+            if hasattr(self, "_recorder") and self._recorder:
+                self._recorder.record_output(sever_banner)
         except Exception:
             pass
 
@@ -568,10 +571,13 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
 
                 if clean_cmd and not is_command_allowed(clean_cmd):
                     # Blocked command attempt in interactive shell!
-                    self._write(
-                        "\r\n"
-                        "[DENIED] Command is not allowed by gateway security policy.\r\n"
+                    denied_msg = (
+                        f"\r\n"
+                        f"[DENIED] Command is not allowed by gateway security policy: '{clean_cmd}'\r\n"
                     )
+                    self._write(denied_msg)
+                    if hasattr(self, "_recorder") and self._recorder:
+                        self._recorder.record_output(denied_msg)
                     asyncio.create_task(self._report_blocked_command(clean_cmd))
                     # Send Ctrl+C to cancel whatever was entered on target
                     raw_to_send = b"\x03"
@@ -621,18 +627,23 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
                     "rule": "COMMAND_POLICY",
                 }
             )
+        except Exception as exc:
+            print(f"Failed to dispatch command_blocked: {exc}")
+
+        try:
             await security_event(
                 {
                     "sessionId": self._session_id,
                     "userId": self._user_id,
                     "serverId": self._server_id,
+                    "command": command,
                     "rule": "COMMAND_POLICY",
-                    "severity": "medium",
-                    "description": f"Blocked command attempted: {command}",
+                    "severity": "high",
+                    "description": f"Dangerous command blocked: {command}",
                 }
             )
         except Exception as exc:
-            print(f"Failed to dispatch security alerts for blocked command: {exc}")
+            print(f"Failed to dispatch security_event: {exc}")
 
     async def _report_allowed_command(self, command):
         try:

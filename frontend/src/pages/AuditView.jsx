@@ -102,7 +102,7 @@ export default function AuditView() {
         const cmd = log.metadata?.command || log.metadata?.cmd;
         if (cmd && !sess.commands.includes(cmd)) sess.commands.push(cmd);
       } else if (evType.includes('COMMAND_BLOCKED') || evType.includes('ALERT') || evType.includes('FAILED')) {
-        const cmd = log.metadata?.command || log.metadata?.reason || 'Security Alert';
+        const cmd = log.metadata?.command || log.metadata?.description || log.metadata?.reason || 'Security Alert';
         sess.alerts.push(cmd);
       }
 
@@ -399,7 +399,7 @@ export default function AuditView() {
                         <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 border-t md:border-t-0 border-slate-800/80 pt-3 md:pt-0">
                           {canReplay ? (
                             <button
-                              onClick={() => handleOpenReplay({ id: sess.sessionId, user_id: sess.userId, server_id: sess.serverId })}
+                              onClick={() => handleOpenReplay({ id: sess.sessionId, user_id: sess.userId, server_id: sess.serverId, alerts: sess.alerts })}
                               className={`px-4 py-2.5 rounded-lg text-xs font-semibold shadow-md flex items-center gap-2 transition cursor-pointer ${
                                 isLatest
                                   ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-emerald-900/40 ring-1 ring-emerald-400/40'
@@ -578,7 +578,11 @@ export default function AuditView() {
                         <span className="text-xs font-mono text-cyan-400">{alert.server_id}</span>
                       </div>
                       <p className="text-xs font-mono text-red-300">
-                        {alert.metadata?.command ? `Attempted: ${alert.metadata.command}` : JSON.stringify(alert.metadata || {})}
+                        {alert.metadata?.command
+                          ? `Attempted: ${alert.metadata.command}`
+                          : alert.metadata?.description
+                            ? alert.metadata.description
+                            : JSON.stringify(alert.metadata || {})}
                       </p>
                     </div>
 
@@ -588,7 +592,7 @@ export default function AuditView() {
                       </span>
                       {alert.has_recording && (
                         <button
-                          onClick={() => handleOpenReplay({ id: alert.session_id, user_id: alert.user_id, server_id: alert.server_id })}
+                          onClick={() => handleOpenReplay({ id: alert.session_id, user_id: alert.user_id, server_id: alert.server_id, alerts: [alert.metadata?.command || alert.metadata?.description || 'Blocked Command'] })}
                           className="mt-1 px-2.5 py-1 bg-red-600/80 hover:bg-red-600 text-white rounded text-[11px] font-medium transition cursor-pointer"
                         >
                           Review in Replay

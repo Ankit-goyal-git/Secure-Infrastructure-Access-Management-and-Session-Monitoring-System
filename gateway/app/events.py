@@ -76,32 +76,73 @@ async def security_event(payload: dict) -> None:
 
 
 async def command_allowed(payload: dict) -> None:
-    await send_monitoring_event({
-        "event_type": "COMMAND_ALLOWED",
-        "user_id": payload["userId"],
-        "server_id": payload["serverId"],
-        "session_id": payload["sessionId"],
-        "result": "ALLOWED",
-        "metadata": {
-            "source": "ssh_gateway",
-            "command": payload.get("command"),
-        },
-    })
+    # 1. Log to Backend PostgreSQL Audit Trail
+    try:
+        await audit_event({
+            "sessionId": payload["sessionId"],
+            "userId": payload["userId"],
+            "serverId": payload["serverId"],
+            "eventType": "COMMAND_ALLOWED",
+            "eventData": {
+                "command": payload.get("command"),
+                "source": "ssh_gateway",
+            },
+        })
+    except Exception as exc:
+        print(f"Failed to send COMMAND_ALLOWED audit event: {exc}")
+
+    # 2. Forward to Prometheus Monitoring engine
+    try:
+        await send_monitoring_event({
+            "event_type": "COMMAND_ALLOWED",
+            "user_id": payload["userId"],
+            "server_id": payload["serverId"],
+            "session_id": payload["sessionId"],
+            "result": "ALLOWED",
+            "metadata": {
+                "source": "ssh_gateway",
+                "command": payload.get("command"),
+            },
+        })
+    except Exception:
+        pass
 
 
 async def command_blocked(payload: dict) -> None:
-    await send_monitoring_event({
-        "event_type": "COMMAND_BLOCKED",
-        "user_id": payload["userId"],
-        "server_id": payload["serverId"],
-        "session_id": payload["sessionId"],
-        "result": "BLOCKED",
-        "metadata": {
-            "source": "ssh_gateway",
-            "command": payload.get("command"),
-            "rule_matched": payload.get("rule"),
-        },
-    })
+    # 1. Log to Backend PostgreSQL Audit Trail
+    try:
+        await audit_event({
+            "sessionId": payload["sessionId"],
+            "userId": payload["userId"],
+            "serverId": payload["serverId"],
+            "eventType": "COMMAND_BLOCKED",
+            "eventData": {
+                "command": payload.get("command"),
+                "rule": payload.get("rule", "COMMAND_POLICY"),
+                "severity": "high",
+                "description": f"Dangerous command blocked: {payload.get('command')}",
+                "source": "ssh_gateway",
+            },
+        })
+    except Exception as exc:
+        print(f"Failed to send COMMAND_BLOCKED audit event: {exc}")
+
+    # 2. Forward to Prometheus Monitoring engine
+    try:
+        await send_monitoring_event({
+            "event_type": "COMMAND_BLOCKED",
+            "user_id": payload["userId"],
+            "server_id": payload["serverId"],
+            "session_id": payload["sessionId"],
+            "result": "BLOCKED",
+            "metadata": {
+                "source": "ssh_gateway",
+                "command": payload.get("command"),
+                "rule_matched": payload.get("rule"),
+            },
+        })
+    except Exception:
+        pass
 
 
 async def access_expired(payload: dict) -> None:

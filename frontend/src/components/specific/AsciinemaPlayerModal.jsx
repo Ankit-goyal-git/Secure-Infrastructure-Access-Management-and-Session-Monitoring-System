@@ -269,6 +269,24 @@ export default function AsciinemaPlayerModal({ session, isOpen, onClose }) {
           </span>
         </div>
 
+        {/* Security Alert Notification Banner */}
+        {((session?.alerts && session.alerts.length > 0) || terminalOutput.includes('[DENIED]')) && (
+          <div className="bg-red-950/70 border-b border-red-500/30 px-4 py-2 flex items-center justify-between text-xs text-red-200">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🚨</span>
+              <span className="font-semibold text-red-400">Security Policy Violation:</span>
+              <span>
+                {session?.alerts && session.alerts.length > 0
+                  ? `Blocked command attempt detected (${session.alerts.join(', ')})`
+                  : 'A dangerous command was blocked and neutralized in this session.'}
+              </span>
+            </div>
+            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-300 font-mono text-[10px] uppercase font-bold tracking-wider">
+              Intercepted
+            </span>
+          </div>
+        )}
+
         {/* Terminal Screen */}
         <div
           ref={terminalRef}
