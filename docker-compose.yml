@@ -84,11 +84,13 @@ services:
     depends_on:
       - prometheus
 
-  # Secure SSH Target Container
-  target-server:
+  # Target Server 1: Primary Staging Bastion Target Node
+  target-server-1:
     build:
       context: ./docker/target-server
-    container_name: secure-target-server
+    container_name: secure-target-bastion-1
+    hostname: demo-bastion-01
+    restart: unless-stopped
     environment:
       PUID: "1000"
       PGID: "1000"
@@ -99,6 +101,60 @@ services:
       SUDO_ACCESS: "false"
     ports:
       - "2223:2222"
+
+  # Target Server 2: Production PostgreSQL Database Node
+  target-server-2:
+    build:
+      context: ./docker/target-server
+    container_name: secure-target-db-2
+    hostname: prod-db-02
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+      USER_NAME: employee
+      USER_PASSWORD: employee123
+      PASSWORD_ACCESS: "true"
+      SUDO_ACCESS: "false"
+    ports:
+      - "2224:2222"
+
+  # Target Server 3: Payment Microservice Cluster Node
+  target-server-3:
+    build:
+      context: ./docker/target-server
+    container_name: secure-target-payment-3
+    hostname: payment-node-03
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+      USER_NAME: employee
+      USER_PASSWORD: employee123
+      PASSWORD_ACCESS: "true"
+      SUDO_ACCESS: "false"
+    ports:
+      - "2225:2222"
+
+  # Target Server 4: Analytics Worker Node (Demo node for registering custom servers)
+  target-server-4:
+    build:
+      context: ./docker/target-server
+    container_name: secure-target-analytics-4
+    hostname: analytics-node-04
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+      USER_NAME: employee
+      USER_PASSWORD: employee123
+      PASSWORD_ACCESS: "true"
+      SUDO_ACCESS: "false"
+    ports:
+      - "2226:2222"
 
 volumes:
   pgdata:

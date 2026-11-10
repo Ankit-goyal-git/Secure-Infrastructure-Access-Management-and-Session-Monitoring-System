@@ -33,35 +33,45 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function LoginPage() {
+  const [authMode, setAuthMode] = useState('otp'); // 'otp' | 'password'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // OTP flow states
+  const [otpStep, setOtpStep] = useState('email'); // 'email' | 'verify'
+  const [otpCode, setOtpCode] = useState('');
+  const [otpNotice, setOtpNotice] = useState('');
+  const [devOtp, setDevOtp] = useState('');
+
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeQuickRole, setActiveQuickRole] = useState(null);
   const navigate = useNavigate();
 
   // 1-Click demo role switcher is disabled by default for production security.
-  // Set VITE_ENABLE_DEMO_LOGIN=true in your environment variables only if testing demo accounts.
   const isDemoEnabled = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
 
-  const executeLogin = async (loginEmail, loginPassword) => {
+  const routeUser = (user) => {
+    if (user.role === 'admin') {
+      navigate('/admin');
+    } else if (user.role === 'manager') {
+      navigate('/manager');
+    } else {
+      navigate('/employee');
+    }
+  };
+
+  // Standard Password Login
+  const executePasswordLogin = async (loginEmail, loginPassword) => {
     setError('');
     setIsLoading(true);
 
     try {
       const { token, user } = await authService.login(loginEmail, loginPassword);
-      
       localStorage.setItem('jwt_token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
-      if (user.role === 'admin') {
-        navigate('/admin');
-      } else if (user.role === 'manager') {
-        navigate('/manager');
-      } else {
-        navigate('/employee');
-      }
+      routeUser(user);
     } catch (err) {
       setError(
         err.response?.data?.error ||
@@ -74,16 +84,65 @@ export default function LoginPage() {
     }
   };
 
-  const handleFormSubmit = (e) => {
+  // Step 1: Send Login OTP via Gmail
+  const handleSendLoginOtp = async (e) => {
     e.preventDefault();
-    executeLogin(email, password);
+    if (!email) {
+      setError('Please enter your registered email address.');
+      return;
+    }
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const res = await authService.sendLoginOtp(email);
+      setOtpNotice(res.message || `Security code sent to ${email}`);
+      if (res.devOtp) setDevOtp(res.devOtp);
+      setOtpStep('verify');
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Failed to send verification code. Please check your email.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2: Verify Login OTP
+  const handleVerifyLoginOtp = async (e) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setError('Please enter the 6-digit security code.');
+      return;
+    }
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const { token, user } = await authService.verifyLoginOtp(email, otpCode.trim());
+      localStorage.setItem('jwt_token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      routeUser(user);
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Verification failed. Invalid or expired code.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleQuickSign = (acc) => {
     setEmail(acc.email);
     setPassword(acc.password);
     setActiveQuickRole(acc.role);
-    executeLogin(acc.email, acc.password);
+    executePasswordLogin(acc.email, acc.password);
   };
 
   return (
@@ -98,145 +157,257 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 mb-3 shadow-inner">
             <span className="text-2xl">🔒</span>
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Zero-Trust Bastion</h2>
-          <p className="text-slate-400 mt-1 text-xs">
-            Ephemeral Just-In-Time Access & Session Gateway
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">PAM Security Portal</h1>
+          <p className="text-xs text-slate-400 mt-1">Zero-Trust Infrastructure Access Gateway</p>
         </div>
 
-        {/* 1-Click Demo Role Switcher Bar (Automatically disabled in production builds) */}
-        {isDemoEnabled && (
+        {/* Global Error Banner */}
+        {error && (
+          <div className="mb-5 p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-start gap-2.5 animate-fadeIn">
+            <span className="text-base leading-none">⚠️</span>
+            <div className="flex-1">{error}</div>
+          </div>
+        )}
+
+        {/* Auth Mode Toggle */}
+        <div className="flex rounded-xl bg-slate-950/70 p-1 mb-5 border border-slate-800">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('otp');
+              setError('');
+            }}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              authMode === 'otp'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>📧</span>
+            <span>Gmail OTP</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('password');
+              setError('');
+            }}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              authMode === 'password'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>🔑</span>
+            <span>Password</span>
+          </button>
+        </div>
+
+        {/* MODE 1: GMAIL OTP LOGIN */}
+        {authMode === 'otp' && (
           <>
-            <div className="mb-6 p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  <span>⚡</span>
-                  <span>1-Click Demo Login (Dev Mode)</span>
-                </span>
-                <span className="text-[10px] text-slate-500">Auto-routes to role</span>
-              </div>
+            {otpStep === 'email' ? (
+              <form onSubmit={handleSendLoginOtp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                    Work / Gmail Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition"
+                  />
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    We will send a 6-digit one-time passkey directly to your inbox.
+                  </span>
+                </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {DEMO_ACCOUNTS.map((acc) => {
-                  const isSelected = activeQuickRole === acc.role;
-                  return (
-                    <button
-                      key={acc.role}
-                      type="button"
-                      onClick={() => handleQuickSign(acc)}
-                      disabled={isLoading}
-                      className={`p-2 rounded-lg border text-left transition flex flex-col justify-between cursor-pointer group hover:scale-[1.02] ${
-                        isSelected
-                          ? 'bg-blue-600 text-white border-blue-400 shadow-md'
-                          : 'bg-slate-900/90 hover:bg-slate-850 border-slate-750 hover:border-slate-600'
-                      }`}
-                      title={`Sign in instantly as ${acc.name} (${acc.role})`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-base">{acc.icon}</span>
-                        <span
-                          className={`text-[9px] px-1 py-0.2 rounded font-mono font-semibold uppercase ${acc.badge}`}
-                        >
-                          {acc.role}
-                        </span>
-                      </div>
-                      <div className="mt-1.5">
-                        <div className="text-[11px] font-bold text-white group-hover:text-blue-300 truncate">
-                          {acc.name.split(' ')[0]}
-                        </div>
-                        <div className="text-[9px] text-slate-400 truncate font-mono">
-                          {acc.email.split('@')[0]}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Sending Passkey...</span>
+                    </>
+                  ) : (
+                    <span>Send Verification Code 📧</span>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyLoginOtp} className="space-y-4">
+                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-300">
+                  <p className="font-semibold">{otpNotice}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Sent to <strong>{email}</strong>
+                  </p>
+                </div>
 
-            <div className="relative flex items-center justify-center my-4">
-              <div className="border-t border-slate-800 w-full" />
-              <span className="bg-slate-900 px-3 text-[11px] text-slate-500 font-medium uppercase tracking-wider">
-                or enter credentials
-              </span>
-              <div className="border-t border-slate-800 w-full" />
-            </div>
+                {devOtp && (
+                  <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs font-mono">
+                    ⚡ Dev Code: <strong>{devOtp}</strong>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider text-center">
+                    Enter 6-Digit Passkey
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    autoFocus
+                    required
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    className="w-full px-4 py-3 bg-slate-950 border border-blue-500/50 rounded-xl text-2xl font-mono text-center tracking-[0.4em] text-cyan-300 placeholder-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                  <span className="text-[11px] text-slate-500 text-center block mt-1.5">
+                    Valid for 10 minutes.
+                  </span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || otpCode.length !== 6}
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <span>Verify Code & Sign In 🔐</span>
+                  )}
+                </button>
+
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSendLoginOtp}
+                    disabled={isLoading}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition"
+                  >
+                    Resend Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpStep('email');
+                      setOtpCode('');
+                    }}
+                    className="text-xs text-slate-400 hover:text-slate-200 transition"
+                  >
+                    Change Email
+                  </button>
+                </div>
+              </form>
+            )}
           </>
         )}
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/40 text-red-300 rounded-lg p-3 mb-5 text-xs font-medium flex items-center gap-2">
-            <span>⚠️</span>
-            <span>{error}</span>
+        {/* MODE 2: STANDARD PASSWORD LOGIN */}
+        {authMode === 'password' && (
+          <form onSubmit={(e) => { e.preventDefault(); executePasswordLogin(email, password); }} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                Work / Gmail Address
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+                className="w-full px-3.5 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full px-3.5 py-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs focus:outline-none"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <span>Verifying Credentials...</span>
+                </>
+              ) : (
+                <span>Sign In with Password 🔑</span>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* 1-Click Demo Accounts (Only visible when VITE_ENABLE_DEMO_LOGIN=true) */}
+        {isDemoEnabled && (
+          <div className="mt-6 pt-5 border-t border-slate-800">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                1-Click Demo Roles
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
+                DEV ONLY
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {DEMO_ACCOUNTS.map((acc) => (
+                <button
+                  key={acc.role}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => handleQuickSign(acc)}
+                  className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 cursor-pointer hover:bg-slate-800/80 ${
+                    activeQuickRole === acc.role
+                      ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500'
+                      : 'border-slate-800 bg-slate-950/60'
+                  }`}
+                >
+                  <span className="text-base">{acc.icon}</span>
+                  <span className="text-[11px] font-semibold text-slate-200">{acc.role}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Standard Credentials Form */}
-        <form onSubmit={handleFormSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium mb-1.5 text-slate-300">
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              className="w-full bg-slate-950/70 border border-slate-700/80 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-inner"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. rahul@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1.5 text-slate-300">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                className="w-full bg-slate-950/70 border border-slate-700/80 rounded-lg px-3.5 py-2.5 pr-10 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-inner font-mono"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition focus:outline-none cursor-pointer"
-                tabIndex="-1"
-              >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed mt-2 shadow-lg shadow-blue-600/30 text-sm cursor-pointer flex items-center justify-center gap-2"
-          >
-            {isLoading && <span className="animate-spin text-sm">↻</span>}
-            <span>{isLoading ? 'Authenticating...' : 'Sign In with Password'}</span>
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-xs">
-          <Link
-            to="/register"
-            className="text-slate-400 hover:text-blue-400 transition"
-          >
-            Need an employee account? <span className="underline">Register here</span>
+        {/* Footer Navigation */}
+        <div className="mt-6 pt-5 border-t border-slate-800 text-center text-xs text-slate-400">
+          Need a new PAM account?{' '}
+          <Link to="/register" className="text-blue-400 hover:text-blue-300 font-semibold transition">
+            Create account with Gmail OTP
           </Link>
         </div>
       </div>

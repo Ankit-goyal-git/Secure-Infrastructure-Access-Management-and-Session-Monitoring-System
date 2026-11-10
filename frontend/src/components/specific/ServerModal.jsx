@@ -212,9 +212,12 @@ export default function ServerModal({ isOpen, onClose, serverToEdit, onSaveSucce
                 required
                 value={formData.host}
                 onChange={handleChange}
-                placeholder="e.g. target-server or 10.0.1.20"
+                placeholder="e.g. target-server-4 or 192.168.1.50"
                 className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
+              <p className="text-[11px] text-slate-500 mt-1">
+                For Docker demo nodes use <code className="text-cyan-400">target-server-4</code> (port 22, user: employee, pass: employee123).
+              </p>
             </div>
 
             {/* Port */}

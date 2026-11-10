@@ -417,13 +417,30 @@ class GatewaySSHSession(asyncssh.SSHServerSession):
 
         if settings.target_host_override:
             target_host = settings.target_host_override
-        elif target_host in ("secure-target-server", "target-server"):
-            try:
-                socket.gethostbyname(target_host)
-            except Exception:
-                # Running outside docker on host machine
-                target_host = "localhost"
-                target_port = 2223
+        else:
+            host_port_map = {
+                "target-server": 2223,
+                "secure-target-server": 2223,
+                "target-server-1": 2223,
+                "secure-target-bastion-1": 2223,
+                "demo-server": 2223,
+                "target-server-2": 2224,
+                "secure-target-db-2": 2224,
+                "db-prod-01": 2224,
+                "target-server-3": 2225,
+                "secure-target-payment-3": 2225,
+                "payment-service-node": 2225,
+                "target-server-4": 2226,
+                "secure-target-analytics-4": 2226,
+                "analytics-node-04": 2226,
+            }
+            if target_host in host_port_map:
+                try:
+                    socket.gethostbyname(target_host)
+                except Exception:
+                    # Running outside docker on host machine: map to exposed localhost port
+                    target_port = host_port_map[target_host]
+                    target_host = "localhost"
 
         return target_host, target_port
 

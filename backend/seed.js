@@ -53,7 +53,7 @@ const seedDatabase = async () => {
     // 4. Create target production nodes
     const testServer = await Server.create({
       name: 'demo-server',
-      host: 'target-server',
+      host: 'target-server-1',
       port: 22,
       description: 'Primary Staging Bastion Target Node',
       status: 'active',
@@ -64,7 +64,7 @@ const seedDatabase = async () => {
 
     const dbServer = await Server.create({
       name: 'db-prod-01',
-      host: 'target-server',
+      host: 'target-server-2',
       port: 22,
       description: 'Primary PostgreSQL Database Cluster',
       status: 'active',
@@ -75,7 +75,7 @@ const seedDatabase = async () => {
 
     const appServer = await Server.create({
       name: 'payment-service-node',
-      host: 'target-server',
+      host: 'target-server-3',
       port: 22,
       description: 'Payment Microservice Cluster Node',
       status: 'active',
