@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { adminService } from '../../services/adminService';
+import ConfirmModal from '../common/ConfirmModal';
 
 const ROLES = [
   { id: 'employee', label: 'Employee', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
@@ -22,6 +23,8 @@ export default function UserManagementTab({ currentAdminId }) {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('employee');
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -63,23 +66,26 @@ export default function UserManagementTab({ currentAdminId }) {
     }
   };
 
-  const handleDeleteUser = async (user) => {
+  const handleDeleteUser = (user) => {
     if (String(user.id) === String(currentAdminId)) {
       showToast('You cannot delete your own admin account.', true);
       return;
     }
+    setUserToDelete(user);
+  };
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete user "${user.name}" (${user.email})?`
-    );
-    if (!confirmed) return;
-
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
     try {
-      await adminService.deleteUser(user.id);
-      showToast(`User ${user.email} has been deleted.`);
+      await adminService.deleteUser(userToDelete.id);
+      showToast(`User ${userToDelete.email} has been deleted.`);
+      setUserToDelete(null);
       await fetchUsers();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to delete user.', true);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -457,6 +463,20 @@ export default function UserManagementTab({ currentAdminId }) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <ConfirmModal
+          isOpen={Boolean(userToDelete)}
+          onClose={() => setUserToDelete(null)}
+          onConfirm={handleConfirmDeleteUser}
+          title="Remove Team Member"
+          message={`Are you sure you want to permanently delete user "${userToDelete.name}" (${userToDelete.email})? All associated access history will be unlinked.`}
+          confirmText="Delete User"
+          variant="danger"
+          isLoading={isDeleting}
+        />
       )}
     </div>
   );

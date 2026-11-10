@@ -4,6 +4,8 @@ import Navbar from '../components/common/Navbar';
 import UserManagementTab from '../components/specific/UserManagementTab';
 import { serverService } from '../services/serverService';
 import ServerModal from '../components/specific/ServerModal';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { useToast } from '../context/ToastContext';
 
 const DEPARTMENTS = [
   { id: 'all', label: 'All Departments' },
@@ -15,10 +17,13 @@ const DEPARTMENTS = [
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('servers'); // 'servers' | 'users'
   const [servers, setServers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [serverToDelete, setServerToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const currentUser = useMemo(() => {
     try {
@@ -74,23 +79,25 @@ export default function AdminDashboard() {
     const nextStatus = server.status === 'active' ? 'inactive' : 'active';
     try {
       await serverService.updateServer(server.id, { status: nextStatus });
+      toast.success(`Server "${server.name}" status updated to ${nextStatus}.`);
       await fetchServers();
     } catch (err) {
-      alert(`Failed to update status: ${err.response?.data?.error || err.message}`);
+      toast.error(`Failed to update status: ${err.response?.data?.error || err.message}`);
     }
   };
 
-  const handleDeleteServer = async (server) => {
-    const confirmText = window.confirm(
-      `Are you sure you want to deactivate server "${server.name}" (${server.host}:${server.port})?`
-    );
-    if (!confirmText) return;
-
+  const handleConfirmDelete = async () => {
+    if (!serverToDelete) return;
+    setIsDeleting(true);
     try {
-      await serverService.deleteServer(server.id, false);
+      await serverService.deleteServer(serverToDelete.id, false);
+      toast.warning(`Server "${serverToDelete.name}" was deactivated.`);
+      setServerToDelete(null);
       await fetchServers();
     } catch (err) {
-      alert(`Failed to delete server: ${err.response?.data?.error || err.message}`);
+      toast.error(`Failed to delete server: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -447,8 +454,8 @@ export default function AdminDashboard() {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDeleteServer(server)}
-                            className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-2.5 py-1 rounded transition"
+                            onClick={() => setServerToDelete(server)}
+                            className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-2.5 py-1 rounded transition cursor-pointer"
                           >
                             Delete
                           </button>
@@ -472,6 +479,20 @@ export default function AdminDashboard() {
         serverToEdit={serverToEdit}
         onSaveSuccess={fetchServers}
       />
+
+      {/* Server Deletion Confirmation Modal */}
+      {serverToDelete && (
+        <ConfirmModal
+          isOpen={Boolean(serverToDelete)}
+          onClose={() => setServerToDelete(null)}
+          onConfirm={handleConfirmDelete}
+          title="Deactivate Target Node"
+          message={`Are you sure you want to deactivate server "${serverToDelete.name}" (${serverToDelete.host}:${serverToDelete.port})? Employees will no longer be able to request JIT credentials for this host.`}
+          confirmText="Deactivate Server"
+          variant="danger"
+          isLoading={isDeleting}
+        />
+      )}
     </div>
   );
 }

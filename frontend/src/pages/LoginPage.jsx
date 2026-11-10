@@ -41,8 +41,9 @@ export default function LoginPage() {
   const [activeQuickRole, setActiveQuickRole] = useState(null);
   const navigate = useNavigate();
 
-  // 1-Click demo switcher is enabled in development or when explicitly configured via VITE_ENABLE_DEMO_LOGIN=true
-  const isDemoEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
+  // 1-Click demo role switcher is disabled by default for production security.
+  // Set VITE_ENABLE_DEMO_LOGIN=true in your environment variables only if testing demo accounts.
+  const isDemoEnabled = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true';
 
   const executeLogin = async (loginEmail, loginPassword) => {
     setError('');

@@ -5,5 +5,6 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
 
 router.post('/', authenticate, authorizeRoles('employee'), requestController.createRequest);
 router.get('/', authenticate, authorizeRoles('employee'), requestController.getMyRequests);
+router.delete('/:id', authenticate, authorizeRoles('employee'), requestController.cancelRequest);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import AccessRequestForm from '../components/specific/AccessRequestForm';
 import RequestHistoryTable from '../components/specific/RequestHistoryTable';
@@ -171,7 +172,7 @@ export default function EmployeeDashboard() {
             <AccessRequestForm servers={servers} onSuccess={() => fetchData(false)} />
           </div>
           <div className="lg:col-span-2">
-            <RequestHistoryTable history={history} currentUserId={currentUser.id} />
+            <RequestHistoryTable history={history} currentUserId={currentUser.id} onRefresh={() => fetchData(true)} />
           </div>
         </div>
       )}

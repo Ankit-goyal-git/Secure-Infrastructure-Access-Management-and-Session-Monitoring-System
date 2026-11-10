@@ -32,12 +32,11 @@
 
 ## 🎬 Step-by-Step Live Demo Script
 
-### ⚙️ PRE-DEMO CHECK: Start All Services (1 Command)
-Open a PowerShell terminal in the project root:
-```powershell
-.\start-dev.ps1
-```
-*(This launches Docker, seeds the DB with IDs starting at 1, and opens Backend, Gateway, and Frontend in separate windows).*
+### ⚙️ PRE-DEMO CHECK: Verify Services
+Ensure the Docker stack (Postgres, Redis, Target Server) and services are active:
+- Backend: `http://localhost:3000`
+- SSH Gateway: `localhost:2222`
+- Frontend: `http://localhost:5173`
 
 ---
 
@@ -49,7 +48,7 @@ Open a PowerShell terminal in the project root:
    ```bash
    ssh employee_1_server_1@localhost -p 2222
    ```
-   *(When prompted for password, enter `password123` or press Enter)*
+   *(When prompted for password, enter `rahulPass123!` or any password)*
 3. **Expected Outcome:**
    - The connection is **REJECTED**: `Permission denied, please try again.`
    - **Say to evaluator:** *"Because Rahul has no active, approved access grant in Redis/PostgreSQL, the SSH gateway instantly rejects the connection."*
@@ -62,99 +61,92 @@ Open a PowerShell terminal in the project root:
 1. Open browser to **`http://localhost:5173`**.
 2. Log in as Employee:
    - **Email:** `rahul@example.com`
-   - **Password:** `password123`
-3. Click on the **Request JIT Access** card:
+   - **Password:** `rahulPass123!`
+3. Notice the **Request JIT Access** card:
    - **Target Server:** Select `demo-server`
-   - **Duration:** Enter `30` (minutes)
-   - **Justification:** *"Emergency patch on production application service"*
+   - **Duration:** Click preset `[30m]` chip (or adjust slider)
+   - **Justification:** Click `⚡ Sev-1 Hotfix` template chip
 4. Click **Submit Request**.
 5. **Expected Outcome:**
-   - The request appears immediately in Rahul's Request History table with a yellow **`PENDING`** badge.
+   - The request appears immediately in Rahul's Request History table with a pulsing amber **`PENDING`** badge.
+   - Self-service cancel option is available if submitted by mistake.
 
 ---
 
 ### ACT 3: Manager Dashboard (Approval & Redis TTL Grant)
 **Narrative:** *"The manager reviews pending access requests and grants time-limited access."*
 
-1. In the browser, log out or open an Incognito window: **`http://localhost:5173`**.
+1. Open an Incognito window: **`http://localhost:5173`**.
 2. Log in as Manager:
    - **Email:** `boss@example.com`
-   - **Password:** `password123`
-3. In the **Manager Dashboard**, point out Rahul's pending request with justification.
-4. *(Optional Architecture Point)*: Mention **Self-Approval Guard** — *"If a manager creates a request for themselves, the backend explicitly forbids them from approving it."*
-5. Click **Approve Access**.
-6. **Expected Outcome:**
-   - The pending card disappears with a success status.
+   - **Password:** `bobManager789$`
+3. In the **Manager Dashboard**, point out Rahul's pending request with justification and user avatar.
+4. Click **Approve Access** (or click `Customize` to adjust grant duration or add an audit note).
+5. **Expected Outcome:**
+   - The pending card disappears with a success toast notification.
    - Behind the scenes, the backend writes a grant to PostgreSQL and caches `access:1:1` in **Redis with a 30-minute TTL countdown**.
 
 ---
 
-### ACT 4: Dynamic SSH Tunneling & Command Policy (The Positive Test)
-**Narrative:** *"Now that access is approved in Redis, Rahul can connect directly through the SSH gateway without ever knowing the server's root password or holding private keys."*
+### ACT 4: Multi-Server Active Grants Grid (Connecting to SSH)
+**Narrative:** *"Back on the employee portal, the newly approved grant surfaces in the multi-server grid with a live countdown timer."*
 
-1. Back in your terminal, run the SSH command again:
+1. Switch back to Rahul's browser tab.
+2. Point out the **Active JIT Grants (Ready to Connect)** grid:
+   - Card for `demo-server` is visible with live independent countdown timer and node details.
+   - Copy connection command button: `ssh employee_1_server_1@localhost -p 2222`.
+3. Back in your terminal, run the command:
    ```bash
    ssh employee_1_server_1@localhost -p 2222
    ```
-   *(Enter password: `password123` or press Enter)*
-2. **Expected Outcome:**
-   - **Success!** You land directly in the gateway shell:
+   *(Enter password: `rahulPass123!`)*
+4. **Expected Outcome:**
+   - Handshake succeeds, welcome banner appears, and interactive terminal prompt opens:
      ```text
-     Secure SSH Gateway
-     Connected to authorized target server.
-     Type a command or 'exit' to close the session.
-     gateway>
+     Welcome to OpenSSH Server
+     employee@target:~$
      ```
-
-3. **Run Allowed Commands:**
-   ```bash
-   gateway> whoami
-   gateway> uname -a
-   gateway> ls -la
-   ```
-   *(Shows output executing inside the target Ubuntu container).*
-
-4. **Demonstrate Command Filtering & Policy Enforcement (Threat Defense):**
-   ```bash
-   gateway> rm -rf /
-   ```
-   **Expected Outcome:**
-   - **`[DENIED] Command is not allowed by gateway policy.`**
-   - **Say to evaluator:** *"The gateway intercepts every command before passing it to the server. Dangerous actions like destructive wipes, privilege escalations, or raw format commands are blocked in real time."*
-
-5. Close the session:
-   ```bash
-   gateway> exit
-   ```
+   - Execute commands like `whoami`, `uptime`, `ls -la`.
 
 ---
 
-### ACT 5: Real-Time Observability & Audit Dashboards
-**Narrative:** *"Every single action—session starts, command executions, and security violations—is audited and streamed to our monitoring stack."*
+### ACT 5: Real-Time Active Revocation (Mid-Session Severance)
+**Narrative:** *"A manager can sever any active session in real time. The gateway immediately terminates the TCP connection and writes an explicit security banner."*
 
-1. Open **Grafana Dashboard**: **`http://localhost:3002`**
-   - **Username:** `admin`
-   - **Password:** `admin`
-2. Open the provisioned **Secure Infrastructure Access Dashboard**:
-   - Point out **Active Sessions**, **Total Commands Executed**, and the spike in **Blocked Commands**.
-3. Open **Prometheus**: **`http://localhost:9090`**
-   - Query `commands_blocked_total` or `active_sessions_count`.
-   - Show how Prometheus scraped the metrics directly from our Express monitoring service on port `3001`.
+1. In the Manager Portal, navigate to **Active Sessions**.
+2. Point out Rahul's live active session with elapsed/remaining countdown.
+3. Click **Revoke** and confirm severance reason.
+4. **Expected Outcome in User's Terminal:**
+   ```text
+   =====================================================
+   [ACCESS REVOKED] Your session has been revoked by a manager.
+   Connection severed.
+   =====================================================
+   Connection to localhost closed by remote host.
+   ```
+5. In the employee browser, the active card is immediately removed, and a red alert toast informs the employee: *"Session was revoked by manager: demo-server"*.
 
 ---
 
-### ACT 6: Wrap-Up & Roadmap (What's Done vs What's Next)
+### ACT 6: Asciinema Keystroke Audit Replay
+**Narrative:** *"All interactive sessions are recorded for compliance and can be reviewed keystroke-by-keystroke."*
 
-#### ✅ What is Done (Phase 1 Baseline MVP):
-- Full working integration across 4 independent subsystems (**Frontend**, **Backend**, **SSH Gateway**, **Monitoring**).
-- Zero-Trust dynamic SSH routing (`employee_{u}_server_{s}`).
-- Automated Redis TTL expiration and immediate admin revocation.
-- Real-time command filtering and Prometheus/Grafana security observability.
-- Automated tests passing: **13/13 Pytest** (Gateway) & **17/17 Jest** (Monitoring).
+1. In the navigation bar, click **Audit Logs** (`/audit`).
+2. Point out the closed session entry with the green `✓ Asciicast Ready` badge.
+3. Click **Replay Session**:
+   - The interactive player opens the authentic keystroke terminal stream.
+   - Use the **Filter buffer** input to highlight commands (e.g. `whoami`).
+   - Use `-5s` and `+5s` jump buttons or speed toggles (`1x`, `2x`, `4x`).
+   - Click `[📋 Copy]` to export terminal session text.
 
-#### 🚀 What is Next (Phase 2 Scope):
-1. **Employee Self-Registration:** Public sign-up workflow & email verification.
-2. **Multi-Target Scaling:** Dynamic server groups and clustering instead of a single target.
-3. **Granular Per-Request Command Allowlists:** Custom permissions negotiated per ticket.
-4. **Session Keystroke Replay:** Full asciinema terminal playback for compliance audits.
-5. **MFA / 2FA:** TOTP second factor for privileged manager approvals.
+---
+
+### ACT 7: Admin Console & Role-Based Access Control (RBAC)
+**Narrative:** *"SecOps Administrators have unified control over team roles and target infrastructure nodes."*
+
+1. Log in as Admin:
+   - **Email:** `admin@example.com`
+   - **Password:** `adminMaster999@`
+2. Navigate to `/admin`:
+   - **User Management Tab:** Promote/demote team members between Employee, Manager, and Admin with instant confirmation dialogs.
+   - **Server Inventory:** Add new managed nodes, toggle active/maintenance status, and run interactive **Quick Ping** diagnostics to measure TCP/SSH latency.

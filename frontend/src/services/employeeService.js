@@ -15,4 +15,9 @@ export const employeeService = {
     const response = await axiosClient.get('/access-requests');
     return response.data;
   },
+
+  cancelRequest: async (requestId) => {
+    const response = await axiosClient.delete(`/access-requests/${requestId}`);
+    return response.data;
+  },
 };

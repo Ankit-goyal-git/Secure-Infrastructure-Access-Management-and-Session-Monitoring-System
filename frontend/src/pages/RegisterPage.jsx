@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/authService';
 
@@ -14,12 +14,37 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Password Strength Calculation
+  const passwordStrength = useMemo(() => {
+    if (!password) return { score: 0, label: 'None', color: 'bg-slate-700' };
+    let score = 0;
+    if (password.length >= 8) score += 1;
+    if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1;
+    if (/[0-9]/.test(password)) score += 1;
+    if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+    switch (score) {
+      case 1:
+        return { score: 25, label: 'Weak', color: 'bg-red-500', text: 'text-red-400' };
+      case 2:
+        return { score: 50, label: 'Fair', color: 'bg-amber-500', text: 'text-amber-400' };
+      case 3:
+        return { score: 75, label: 'Good', color: 'bg-blue-500', text: 'text-blue-400' };
+      case 4:
+        return { score: 100, label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-400' };
+      default:
+        return { score: 10, label: 'Too short', color: 'bg-red-500', text: 'text-red-400' };
+    }
+  }, [password]);
+
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    // Client-side validation: Password match
     if (password !== confirmPassword) {
       setError('Passwords do not match. Please re-enter.');
       return;
@@ -35,7 +60,6 @@ export default function RegisterPage() {
     try {
       const response = await authService.register(name, email, password);
 
-      // If backend returns auth session token and user directly
       if (response?.token && response?.user) {
         localStorage.setItem('jwt_token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
@@ -63,127 +87,175 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-100 p-4">
-      <div className="w-full max-w-md bg-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-white tracking-tight">Create Account</h2>
-          <p className="text-slate-400 mt-2 text-sm">Secure Temporary Access Gateway Onboarding</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-4 font-sans relative overflow-hidden">
+      {/* Ambient background glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[380px] bg-blue-600/10 rounded-full blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/3 w-[480px] h-[320px] bg-purple-600/10 rounded-full blur-[110px] pointer-events-none" />
+
+      <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-slate-700/80 relative z-10">
+        {/* Header Branding */}
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 mb-3 shadow-inner">
+            <span className="text-2xl">🛡️</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Create JIT Account</h2>
+          <p className="text-slate-400 mt-1 text-xs">
+            Zero-Trust Bastion Ephemeral Infrastructure Onboarding
+          </p>
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500 text-red-400 rounded-md p-3 mb-6 text-sm font-medium">
-            {error}
+          <div className="bg-red-500/10 border border-red-500/40 text-red-300 rounded-xl p-3 mb-5 text-xs font-medium flex items-start gap-2">
+            <span className="shrink-0 text-sm">⚠️</span>
+            <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="bg-emerald-500/10 border border-emerald-500 text-emerald-400 rounded-md p-3 mb-6 text-sm font-medium">
-            {success}
+          <div className="bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 rounded-xl p-3 mb-5 text-xs font-medium flex items-start gap-2">
+            <span className="shrink-0 text-sm">✓</span>
+            <span>{success}</span>
           </div>
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-300">Full Name</label>
+            <label className="block text-xs font-semibold mb-1.5 text-slate-300">Full Name</label>
             <input
               type="text"
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+              className="w-full bg-slate-950 border border-slate-750 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Jane Doe"
+              placeholder="Alex Chen"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-300">Email Address</label>
+            <label className="block text-xs font-semibold mb-1.5 text-slate-300">Corporate Email</label>
             <input
               type="email"
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+              className="w-full bg-slate-950 border border-slate-750 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane@example.com"
+              placeholder="alex.chen@enterprise.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-300">Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-300">Password</label>
+              {password && (
+                <span className={`text-[10px] font-mono font-bold ${passwordStrength.text}`}>
+                  {passwordStrength.label}
+                </span>
+              )}
+            </div>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2.5 pr-10 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className="w-full bg-slate-950 border border-slate-750 rounded-xl px-3.5 py-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="At least 8 characters..."
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 tabIndex="-1"
               >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
+                {showPassword ? '🙈' : '👁️'}
               </button>
             </div>
+
+            {/* Password Strength Progress Bar */}
+            {password && (
+              <div className="mt-2 space-y-1">
+                <div className="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                    style={{ width: `${passwordStrength.score}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-300">Confirm Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-300">Confirm Password</label>
+              {passwordsMatch && (
+                <span className="text-[10px] font-mono font-bold text-emerald-400">
+                  ✓ Passwords match
+                </span>
+              )}
+              {passwordsMismatch && (
+                <span className="text-[10px] font-mono font-bold text-red-400">
+                  ✕ Passwords do not match
+                </span>
+              )}
+            </div>
             <div className="relative">
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2.5 pr-10 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                className={`w-full bg-slate-950 border rounded-xl px-3.5 py-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition-colors ${
+                  passwordsMismatch
+                    ? 'border-red-500/70 focus:border-red-500'
+                    : passwordsMatch
+                    ? 'border-emerald-500/70 focus:border-emerald-500'
+                    : 'border-slate-750 focus:border-blue-500'
+                }`}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Re-enter password"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 tabIndex="-1"
               >
-                {showConfirmPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
+                {showConfirmPassword ? '🙈' : '👁️'}
               </button>
             </div>
           </div>
 
+          {/* Role guidance note */}
+          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-400 space-y-1">
+            <span className="font-semibold text-slate-300">Default Role: Employee</span>
+            <p>New accounts are onboarded as Employees. Elevated Manager or SecOps Admin privileges can be granted by an Admin in the Admin Console.</p>
+          </div>
+
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-blue-900/20"
+            disabled={isLoading || passwordsMismatch}
+            className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-lg shadow-blue-950/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 mt-4"
           >
-            {isLoading ? 'Creating Account...' : 'Register'}
+            {isLoading ? (
+              <>
+                <span className="animate-spin text-sm">⟳</span>
+                <span>Creating Account...</span>
+              </>
+            ) : (
+              <>
+                <span>🚀</span>
+                <span>Create Account</span>
+              </>
+            )}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm">
+        <div className="mt-6 text-center text-xs text-slate-400">
+          Already have an account?{' '}
           <Link
             to="/login"
-            className="text-slate-400 hover:text-blue-400 transition-colors"
+            className="text-blue-400 hover:text-blue-300 font-semibold transition-colors underline-offset-4 hover:underline"
           >
-            Already have an account? Sign in
+            Sign in here
           </Link>
         </div>
       </div>

@@ -68,3 +68,7 @@ recordings/
 backend/recordings/
 *.cast
 
+# Local legacy & dev archive
+archive/
+
+

@@ -142,3 +142,33 @@ exports.getMyRequests = async (req, res) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+exports.cancelRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await AccessRequest.findOne({
+      where: {
+        id,
+        userId: req.user.id,
+        status: 'pending',
+      },
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Pending request not found or already processed.' });
+    }
+
+    request.status = 'denied';
+    request.reason = `${request.reason} [Cancelled by employee]`;
+    await request.save();
+
+    return res.status(200).json({
+      message: 'Access request cancelled successfully.',
+      id: request.id,
+      status: request.status,
+    });
+  } catch (error) {
+    console.error('Error cancelling access request:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};

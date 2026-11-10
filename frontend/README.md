@@ -18,11 +18,15 @@ This component is the user interface of the platform. It provides employees with
 The directories are organized as follows:
 - [`src/components/`](src/components/): Reusable UI primitives (Layout wrappers, Status Badges, Form Inputs).
 - [`src/pages/`](src/pages/): Page-level views:
-  - `Login.jsx`: User login page.
-  - `EmployeeDashboard.jsx`: Server list table, Request Forms, and Active Grants dashboard.
-  - `ManagerDashboard.jsx`: List of pending requests, approvals/rejections toggles, and live connection logs.
-- [`src/services/`](src/services/): API helper functions (handling HTTP client headers).
-- [`src/context/`](src/context/): Global states such as `AuthContext` to persist JWT cookies and logged-in user profiles.
+  - `LoginPage.jsx`: User login page with obsidian glassmorphic aesthetic.
+  - `RegisterPage.jsx`: Employee registration with live password strength meter.
+  - `EmployeeDashboard.jsx`: Multi-server active JIT grants grid, request forms, and history.
+  - `ManagerDashboard.jsx`: 4s live sync of pending authorizations and active SSH sessions.
+  - `AdminDashboard.jsx`: Unified console for RBAC user roles and server catalog.
+  - `AuditView.jsx`: Forensic audit trail and Asciinema keystroke session replay.
+- [`src/components/`](src/components/): Reusable UI primitives (ConfirmModal, Navbar, ActiveGrantsGrid, AsciinemaPlayerModal, ServerModal, UserManagementTab).
+- [`src/services/`](src/services/): API service wrappers (auth, employee, manager, admin, audit, server).
+- [`src/context/`](src/context/): Global states including `ToastContext` for animated notifications.
 
 ---
 
@@ -32,10 +36,6 @@ The directories are organized as follows:
 Navigate to the frontend directory:
 ```bash
 cd frontend
-```
-
-Install packages:
-```bash
 npm install
 ```
 
@@ -54,8 +54,10 @@ npm run build
 ---
 
 ## 4. Key Page Routes
-- `/login`: User entry point. Unauthenticated users are redirected here automatically via route guards.
-- `/employee`: Employee portal where server tables and access requests reside.
-- `/manager`: Approval portal and current sessions monitoring dashboard for managers/admins.
-- `/sessions`: Detailed session logs page.
+- `/login`: Secure user entry point.
+- `/register`: Employee onboarding with real-time password strength validation.
+- `/employee`: Employee portal with multi-server active grants grid and JIT access form.
+- `/manager`: Security manager portal with 4s live sync and instant session revocation.
+- `/admin`: SecOps administrator console for user role management and node catalog.
+- `/audit`: Comprehensive audit log view with interactive Asciinema v2 keystroke player.
 - `/audit`: Platform-wide security dashboard.
