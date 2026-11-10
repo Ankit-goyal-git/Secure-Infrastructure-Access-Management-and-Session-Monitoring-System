@@ -3,15 +3,31 @@ require('dotenv').config();
 
 // Create reusable transporter object using Gmail SMTP or custom SMTP
 const createTransporter = () => {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_APP_PASSWORD;
+  const user = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : null;
+  const rawPass = process.env.EMAIL_APP_PASSWORD ? process.env.EMAIL_APP_PASSWORD.trim() : null;
 
-  if (!user || !pass) {
+  if (!user || !rawPass) {
     return null;
   }
 
+  // Google displays App Passwords with spaces like "badp czne wqgd miqe".
+  // Remove all whitespace characters so SMTP authentication succeeds.
+  const pass = rawPass.replace(/\s+/g, '');
+
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+
+  if (host === 'smtp.gmail.com' || user.toLowerCase().endsWith('@gmail.com')) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user,
+        pass,
+      },
+    });
+  }
+
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    host,
     port: parseInt(process.env.SMTP_PORT || '465', 10),
     secure: (process.env.SMTP_SECURE || 'true') === 'true',
     auth: {
@@ -23,10 +39,9 @@ const createTransporter = () => {
 
 /**
  * Sends a high-security 6-digit OTP verification email via Gmail.
- * Falls back to terminal logging if SMTP credentials are not yet configured in .env.
  */
 exports.sendOtpEmail = async (toEmail, otp, purpose = 'Login Verification') => {
-  const user = process.env.EMAIL_USER;
+  const user = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : null;
   const fromAddress = process.env.EMAIL_FROM || `"Secure PAM Gateway" <${user || 'no-reply@securegateway.internal'}>`;
 
   const htmlContent = `
@@ -100,21 +115,11 @@ Do NOT share this code with anyone.
       return { success: true, messageId: info.messageId, live: true };
     } catch (err) {
       console.error(`[EMAIL ERROR] Failed to send via Gmail SMTP to ${toEmail}:`, err.message);
-      // Fallback display to prevent dev lockouts
-      console.log(`\n======================================================`);
-      console.log(`[FALLBACK DEV OTP] Target: ${toEmail} | Code: ${otp}`);
-      console.log(`======================================================\n`);
-      return { success: false, fallback: true, error: err.message, devOtp: otp };
+      throw new Error(`Email dispatch failed: ${err.message}`);
     }
   } else {
-    // Development mode fallback when EMAIL_USER is not set
-    console.log(`\n======================================================`);
-    console.log(`[DEV MODE - NO GMAIL CONFIGURED]`);
-    console.log(`Target: ${toEmail}`);
-    console.log(`Purpose: ${purpose}`);
-    console.log(`OTP Code: >>> ${otp} <<<`);
-    console.log(`To enable live Gmail delivery, add EMAIL_USER & EMAIL_APP_PASSWORD in .env`);
-    console.log(`======================================================\n`);
-    return { success: true, fallback: true, devOtp: otp };
+    // If no credentials configured, log warning
+    console.warn(`[EMAIL WARNING] No EMAIL_USER and EMAIL_APP_PASSWORD configured in .env.`);
+    throw new Error('Email service is not configured. Please set EMAIL_USER and EMAIL_APP_PASSWORD.');
   }
 };

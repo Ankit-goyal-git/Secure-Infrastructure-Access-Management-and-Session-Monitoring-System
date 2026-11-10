@@ -42,7 +42,6 @@ export default function LoginPage() {
   const [otpStep, setOtpStep] = useState('email'); // 'email' | 'verify'
   const [otpCode, setOtpCode] = useState('');
   const [otpNotice, setOtpNotice] = useState('');
-  const [devOtp, setDevOtp] = useState('');
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -98,7 +97,6 @@ export default function LoginPage() {
     try {
       const res = await authService.sendLoginOtp(email);
       setOtpNotice(res.message || `Security code sent to ${email}`);
-      if (res.devOtp) setDevOtp(res.devOtp);
       setOtpStep('verify');
     } catch (err) {
       setError(
@@ -248,12 +246,6 @@ export default function LoginPage() {
                     Sent to <strong>{email}</strong>
                   </p>
                 </div>
-
-                {devOtp && (
-                  <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs font-mono">
-                    ⚡ Dev Code: <strong>{devOtp}</strong>
-                  </div>
-                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider text-center">

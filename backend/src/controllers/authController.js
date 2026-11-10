@@ -119,12 +119,11 @@ exports.sendLoginOtp = async (req, res) => {
     await setOtpCache(key, { otp, userId: user.id }, 600);
 
     // Send email via Gmail SMTP
-    const emailResult = await sendOtpEmail(cleanEmail, otp, 'Login Verification');
+    await sendOtpEmail(cleanEmail, otp, 'Login Verification');
 
     return res.status(200).json({
       success: true,
       message: `A 6-digit security code has been sent to ${cleanEmail}`,
-      devOtp: process.env.NODE_ENV !== 'production' ? emailResult.devOtp : undefined,
     });
   } catch (error) {
     console.error('Error sending login OTP:', error);
@@ -215,12 +214,11 @@ exports.sendRegisterOtp = async (req, res) => {
     const key = `otp:register:${cleanEmail}`;
     await setOtpCache(key, { name: name.trim(), email: cleanEmail, passwordHash, otp }, 600);
 
-    const emailResult = await sendOtpEmail(cleanEmail, otp, 'Account Registration');
+    await sendOtpEmail(cleanEmail, otp, 'Account Registration');
 
     return res.status(200).json({
       success: true,
       message: `A 6-digit verification code has been sent to ${cleanEmail}`,
-      devOtp: process.env.NODE_ENV !== 'production' ? emailResult.devOtp : undefined,
     });
   } catch (error) {
     console.error('Error sending registration OTP:', error);

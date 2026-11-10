@@ -14,7 +14,6 @@ export default function RegisterPage() {
   const [step, setStep] = useState('form'); // 'form' | 'otp'
   const [otp, setOtp] = useState('');
   const [otpSentMessage, setOtpSentMessage] = useState('');
-  const [devOtp, setDevOtp] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -68,7 +67,6 @@ export default function RegisterPage() {
     try {
       const response = await authService.sendRegisterOtp(name, email, password);
       setOtpSentMessage(response.message || `Verification code sent to ${email}`);
-      if (response.devOtp) setDevOtp(response.devOtp);
       setStep('otp');
     } catch (err) {
       setError(
@@ -291,12 +289,6 @@ export default function RegisterPage() {
                 Enter the 6-digit security code sent to <strong>{email}</strong>.
               </p>
             </div>
-
-            {devOtp && (
-              <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs font-mono">
-                ⚡ Dev Code: <strong>{devOtp}</strong>
-              </div>
-            )}
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider text-center">
