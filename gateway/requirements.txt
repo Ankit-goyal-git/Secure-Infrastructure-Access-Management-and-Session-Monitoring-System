@@ -5,3 +5,5 @@ pydantic-settings==2.15.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
 redis>=5.0.0
+cryptography>=42.0.0
+python-dotenv>=1.0.0

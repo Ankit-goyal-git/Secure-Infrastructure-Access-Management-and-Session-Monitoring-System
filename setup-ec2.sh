@@ -109,15 +109,17 @@ cd ..
 echo "[+] Starting services with PM2 process manager..."
 # Backend
 pm2 delete pam-backend 2>/dev/null || true
-pm2 start "node src/app.js" --name "pam-backend" --cwd "$(pwd)/backend"
+pm2 start src/app.js --name "pam-backend" --cwd "$(pwd)/backend"
 
 # SSH Gateway
 pm2 delete pam-gateway 2>/dev/null || true
-pm2 start "$(pwd)/gateway/.venv/bin/python3 -m app.main" --name "pam-gateway" --cwd "$(pwd)/gateway"
+chmod +x "$(pwd)/gateway/run.sh" 2>/dev/null || true
+chmod 600 "$(pwd)/gateway_host_key" 2>/dev/null || true
+pm2 start "$(pwd)/gateway/run.sh" --name "pam-gateway" --interpreter bash
 
 # Frontend Web Preview
 pm2 delete pam-frontend 2>/dev/null || true
-pm2 start "npm run preview -- --host 0.0.0.0 --port 5173" --name "pam-frontend" --cwd "$(pwd)/frontend"
+pm2 start npm --name "pam-frontend" --cwd "$(pwd)/frontend" -- run preview -- --host 0.0.0.0 --port 5173
 
 pm2 save
 
