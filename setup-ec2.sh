@@ -19,6 +19,19 @@ echo "[+] Updating system packages..."
 sudo apt-get update -y
 sudo apt-get install -y curl git ufw python3 python3-pip python3-venv
 
+# Ensure 2GB swap space exists so npm build and Docker never run out of memory on t2.micro
+if ! swapon --show | grep -q "swapfile"; then
+  echo "[+] Setting up 2GB swap memory for stable micro instance performance..."
+  sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
+  if ! grep -q "/swapfile" /etc/fstab; then
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  fi
+  echo "[+] 2GB swap memory active!"
+fi
+
 # 3. Install Node.js (v20 LTS) & Global PM2
 if ! command -v node &> /dev/null; then
   echo "[+] Installing Node.js 20 LTS..."
