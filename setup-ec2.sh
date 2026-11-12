@@ -83,7 +83,37 @@ VITE_API_URL=http://${HOST_ADDRESS}:3000/api
 VITE_ENABLE_DEMO_LOGIN=false
 EOF
 
-# 6. Launch Docker Containers (Postgres, Redis, Monitoring, 4 Target Servers)
+# 6. Stop Any Existing Containers & Free Memory for Clean Build
+echo "[+] Freeing memory for clean, low-RAM build..."
+sudo docker compose down 2>/dev/null || true
+sudo sync
+echo 1 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+
+# 7. Build Frontend Static Assets (Done first while 100% RAM is free)
+echo "[+] Building frontend web application (optimized for low memory)..."
+cd frontend
+npm install --no-audit
+NODE_OPTIONS="--max-old-space-size=400" npm run build
+npm cache clean --force 2>/dev/null || true
+cd ..
+
+# 8. Install Backend Dependencies
+echo "[+] Installing backend dependencies..."
+cd backend
+npm install --no-audit
+npm cache clean --force 2>/dev/null || true
+cd ..
+
+# 9. Setup Python Virtual Environment for SSH Gateway
+echo "[+] Setting up Python SSH Gateway virtual environment..."
+cd gateway
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --no-cache-dir -r requirements.txt
+deactivate
+cd ..
+
+# 10. Launch Docker Containers (Postgres, Redis, Monitoring, 4 Target Servers)
 echo "[+] Starting Dockerized database, redis, and 4 target servers..."
 sudo docker compose up -d
 
@@ -95,34 +125,17 @@ until sudo docker exec secure-gateway-db pg_isready -U secure_gateway_user -d se
 done
 echo "[+] PostgreSQL is healthy and accepting connections!"
 
-# 7. Install Backend & Seed Database
-echo "[+] Installing backend dependencies & seeding database..."
+# 11. Seed Database
+echo "[+] Seeding database..."
 cd backend
-npm install
 node seed.js
 cd ..
 
-# 8. Setup Python Virtual Environment for SSH Gateway
-echo "[+] Setting up Python SSH Gateway virtual environment..."
-cd gateway
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-deactivate
-cd ..
-
-# 9. Build Frontend Static Assets
-echo "[+] Building frontend web application..."
-cd frontend
-npm install
-npm run build
-cd ..
-
-# 10. Start Everything with PM2
+# 12. Start Everything with PM2 (Using low-memory Node flags)
 echo "[+] Starting services with PM2 process manager..."
 # Backend
 pm2 delete pam-backend 2>/dev/null || true
-pm2 start src/app.js --name "pam-backend" --cwd "$(pwd)/backend"
+pm2 start src/app.js --name "pam-backend" --cwd "$(pwd)/backend" --node-args="--max-old-space-size=200"
 
 # SSH Gateway
 pm2 delete pam-gateway 2>/dev/null || true
