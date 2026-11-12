@@ -82,13 +82,17 @@ sudo docker compose down 2>/dev/null || true
 sudo sync
 echo 1 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
 
-# 7. Build Frontend Static Assets (Done first while 100% RAM is free)
-echo "[+] Building frontend web application (optimized for low memory)..."
-cd frontend
-npm install --no-audit
-NODE_OPTIONS="--max-old-space-size=400" npm run build
-npm cache clean --force 2>/dev/null || true
-cd ..
+# 7. Build Frontend Static Assets (Skip if pre-built bundle exists in Git)
+if [ ! -d "frontend/dist" ] || [ ! -f "frontend/dist/index.html" ]; then
+  echo "[+] Building frontend web application (optimized for low memory)..."
+  cd frontend
+  npm install --no-audit
+  NODE_OPTIONS="--max-old-space-size=400" npm run build
+  npm cache clean --force 2>/dev/null || true
+  cd ..
+else
+  echo "[+] Pre-compiled frontend bundle found! Skipping build to conserve 100% RAM."
+fi
 
 # 8. Install Backend Dependencies
 echo "[+] Installing backend dependencies..."
@@ -147,7 +151,10 @@ pm2 start "$(pwd)/gateway/run.sh" --name "pam-gateway" --interpreter bash
 pm2 delete pam-frontend 2>/dev/null || true
 pm2 start npm --name "pam-frontend" --cwd "$(pwd)/frontend" -- run preview -- --host 0.0.0.0 --port 5173
 
+# Save PM2 state & enable automatic startup on every system boot
 pm2 save
+sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2-root startup systemd -u ubuntu --hp /home/ubuntu 2>/dev/null || pm2 startup systemd -u ubuntu --hp /home/ubuntu 2>/dev/null || true
+sudo systemctl enable docker 2>/dev/null || true
 
 echo ""
 echo "=================================================================="
