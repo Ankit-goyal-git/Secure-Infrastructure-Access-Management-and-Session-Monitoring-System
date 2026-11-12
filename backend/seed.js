@@ -16,7 +16,11 @@ const seedDatabase = async () => {
     const rahulHash = await bcrypt.hash('rahulPass123!', 10);
     const priyaHash = await bcrypt.hash('priyaSecure456#', 10);
     const bobHash = await bcrypt.hash('bobManager789$', 10);
-    const aliceHash = await bcrypt.hash('adminMaster999@', 10);
+
+    const adminEmail = (process.env.ADMIN_EMAIL || 'goyalankitgoyal32@gmail.com').toLowerCase().trim();
+    const adminPassword = process.env.ADMIN_PASSWORD || 'AnkitAdmin2026!';
+    const adminName = process.env.ADMIN_NAME || 'Ankit Goyal (Admin)';
+    const adminHash = await bcrypt.hash(adminPassword, 10);
 
     const employee1 = await User.create({
       name: 'Rahul (DevOps)',
@@ -43,12 +47,12 @@ const seedDatabase = async () => {
     console.log(`Created Manager (ID ${manager.id}): ${manager.name}`);
 
     const admin = await User.create({
-      name: 'Admin Alice',
-      email: 'admin@example.com',
-      passwordHash: aliceHash,
+      name: adminName,
+      email: adminEmail,
+      passwordHash: adminHash,
       role: 'admin',
     });
-    console.log(`Created Admin (ID ${admin.id}): ${admin.name}`);
+    console.log(`Created Admin (ID ${admin.id}): ${admin.name} (${admin.email})`);
 
     // 4. Create target production nodes
     const testServer = await Server.create({
