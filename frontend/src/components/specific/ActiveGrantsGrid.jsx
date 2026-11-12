@@ -9,7 +9,8 @@ function GrantCard({ grant, currentUserId, onExpire }) {
 
   const uId = grant.userId || currentUserId || 1;
   const sId = grant.serverId;
-  const sshCommand = `ssh employee_${uId}_server_${sId}@localhost -p 2222`;
+  const host = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : 'localhost';
+  const sshCommand = `ssh employee_${uId}_server_${sId}@${host} -p 2222`;
 
   function calculateTimeRemaining() {
     let expiryMs = null;

@@ -168,7 +168,8 @@ export default function RequestHistoryTable({ history = [], currentUserId, onRef
                 filteredHistory.map((req) => {
                   const uId = req.userId || currentUserId || 1;
                   const sId = req.serverId;
-                  const sshCommand = `ssh employee_${uId}_server_${sId}@localhost -p 2222`;
+                  const host = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : 'localhost';
+                  const sshCommand = `ssh employee_${uId}_server_${sId}@${host} -p 2222`;
                   const isApproved = req.status === 'approved';
                   const isPending = req.status === 'pending';
                   const isRevoked = req.status === 'revoked';
