@@ -106,6 +106,13 @@ pip install --no-cache-dir -r requirements.txt
 deactivate
 cd ..
 
+# Ensure gateway host key exists
+if [ ! -f gateway_host_key ]; then
+  echo "[+] Generating SSH Gateway host key..."
+  ssh-keygen -t rsa -b 2048 -f gateway_host_key -N "" -q
+  chmod 600 gateway_host_key
+fi
+
 # 10. Launch Docker Containers (Postgres, Redis, Monitoring, 4 Target Servers)
 echo "[+] Starting Dockerized database, redis, and 4 target servers..."
 sudo docker compose up -d

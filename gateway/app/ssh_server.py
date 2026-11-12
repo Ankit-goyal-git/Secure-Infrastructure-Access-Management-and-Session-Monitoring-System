@@ -913,7 +913,13 @@ async def start_gateway():
     host_key = Path(__file__).resolve().parents[2] / "gateway_host_key"
 
     if not host_key.exists():
-        raise FileNotFoundError(f"SSH host key not found: {host_key}")
+        print(f"[+] Gateway host key not found at {host_key}. Auto-generating RSA 2048 host key...")
+        new_key = asyncssh.generate_private_key("ssh-rsa")
+        new_key.write_private_key(str(host_key))
+        try:
+            host_key.chmod(0o600)
+        except Exception:
+            pass
 
     # Start Active Revocation Redis Pub/Sub listener in background
     await revocation_listener.start()
