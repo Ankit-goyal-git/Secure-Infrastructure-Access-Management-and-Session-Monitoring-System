@@ -8,14 +8,23 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-// Enable SSL automatically for Supabase, Neon, Render, or production cloud databases
+// Enable SSL automatically for cloud databases (Supabase, Neon, Render, or cloud databases requiring SSL)
+// Never enforce SSL on local Docker or localhost instances
+const isLocalhost =
+  databaseUrl.includes('localhost') ||
+  databaseUrl.includes('127.0.0.1') ||
+  databaseUrl.includes('::1') ||
+  databaseUrl.includes('sslmode=disable');
+
 const isCloudDb =
-  process.env.NODE_ENV === 'production' ||
-  databaseUrl.includes('supabase.com') ||
-  databaseUrl.includes('render.com') ||
-  databaseUrl.includes('sslmode=') ||
-  databaseUrl.includes('neon.tech') ||
-  databaseUrl.includes('pooler.supabase.com');
+  !isLocalhost &&
+  (process.env.DB_SSL === 'true' ||
+    databaseUrl.includes('supabase.com') ||
+    databaseUrl.includes('render.com') ||
+    databaseUrl.includes('neon.tech') ||
+    databaseUrl.includes('pooler.supabase.com') ||
+    databaseUrl.includes('sslmode=require') ||
+    process.env.NODE_ENV === 'production');
 
 const sequelize = new Sequelize(databaseUrl, {
   dialect: 'postgres',

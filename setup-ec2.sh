@@ -5,9 +5,14 @@ echo "=================================================================="
 echo "  SECURE INFRASTRUCTURE ACCESS MANAGEMENT - ONE-CLICK EC2 SETUP   "
 echo "=================================================================="
 
-# 1. Detect Host Public IP
-PUBLIC_IP=$(curl -s ifconfig.me || curl -s http://checkip.amazonaws.com || echo "localhost")
-echo "[+] Detected Public IP: ${PUBLIC_IP}"
+# 1. Detect Host Public IP or Accept Custom Domain Parameter
+if [ -n "$1" ]; then
+  HOST_ADDRESS="$1"
+  echo "[+] Using custom domain / host: ${HOST_ADDRESS}"
+else
+  HOST_ADDRESS=$(curl -s ifconfig.me || curl -s http://checkip.amazonaws.com || echo "localhost")
+  echo "[+] Detected Public IP: ${HOST_ADDRESS}"
+fi
 
 # 2. Update System & Install Core Packages
 echo "[+] Updating system packages..."
@@ -36,7 +41,7 @@ if [ ! -f .env ]; then
 fi
 
 # Update Master Environment Variables
-sed -i "s|VITE_API_URL=.*|VITE_API_URL=http://${PUBLIC_IP}:3000/api|g" .env
+sed -i "s|VITE_API_URL=.*|VITE_API_URL=http://${HOST_ADDRESS}:3000/api|g" .env
 sed -i "s|BACKEND_URL=.*|BACKEND_URL=http://localhost:3000|g" .env
 sed -i "s|EMAIL_USER=.*|EMAIL_USER=goyalankitgoyal32@gmail.com|g" .env
 sed -i "s|EMAIL_APP_PASSWORD=.*|EMAIL_APP_PASSWORD=badpcznewqgdmiqe|g" .env
@@ -61,7 +66,7 @@ EOF
 
 # Configure Frontend .env
 cat <<EOF > frontend/.env
-VITE_API_URL=http://${PUBLIC_IP}:3000/api
+VITE_API_URL=http://${HOST_ADDRESS}:3000/api
 VITE_ENABLE_DEMO_LOGIN=false
 EOF
 
@@ -120,15 +125,16 @@ echo ""
 echo "=================================================================="
 echo "🎉 DEPLOYMENT COMPLETE & ALL SERVICES RUNNING!"
 echo "=================================================================="
-echo "🌐 Web Portal:         http://${PUBLIC_IP}:5173"
+echo "🌐 Web Portal:         http://${HOST_ADDRESS}:5173"
 echo "🔑 Super Admin Email:  goyalankitgoyal32@gmail.com"
 echo "🔒 Super Admin Pass:   AnkitAdmin2026!"
 echo "📧 Gmail OTP Login:    Supported (sent to your real Gmail)"
 echo "------------------------------------------------------------------"
 echo "💻 SSH Bastion Command (Connect from any terminal in the world):"
-echo "   ssh employee_1_server_1@${PUBLIC_IP} -p 2222"
+echo "   ssh employee_1_server_1@${HOST_ADDRESS} -p 2222"
 echo "   Password: employee123"
 echo "------------------------------------------------------------------"
-echo "📊 Monitoring Metrics: http://${PUBLIC_IP}:3001"
-echo "📈 Grafana Dashboards: http://${PUBLIC_IP}:3002 (admin / change_grafana_master_password_in_production)"
+echo "📊 Monitoring Metrics: http://${HOST_ADDRESS}:3001"
+echo "📈 Grafana Dashboards: http://${HOST_ADDRESS}:3002 (admin / change_grafana_master_password_in_production)"
 echo "=================================================================="
+
