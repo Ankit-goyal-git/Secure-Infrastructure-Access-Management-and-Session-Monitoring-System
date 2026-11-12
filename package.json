@@ -1,0 +1,9 @@
+{
+  "name": "secure-infrastructure-access-management",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd backend && npm install",
+    "start": "cd backend && node src/app.js"
+  }
+}
